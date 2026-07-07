@@ -112,10 +112,80 @@ bool SupabaseClient::upsertDeviceStatus(const String &deviceId, bool online, con
   return request("POST", url, body, code, response) && code >= 200 && code < 300;
 }
 
+bool SupabaseClient::upsertBridge(const String &bridgeId, const String &name, const String &localIp, const String &apIp, bool wifiConnected) {
+  if (!isConfigured() || bridgeId.length() == 0) return false;
+
+  const String url = restUrl("/wol_bridges?on_conflict=id");
+  String body = "{\"id\":\"" + jsonEscape(bridgeId) + "\",\"name\":\"" + jsonEscape(name) +
+                "\",\"local_ip\":\"" + jsonEscape(localIp) + "\",\"ap_ip\":\"" + jsonEscape(apIp) +
+                "\",\"wifi_connected\":" + String(wifiConnected ? "true" : "false");
+  const String timestamp = currentIsoTime();
+  if (timestamp.length() > 0) {
+    body += ",\"last_seen_at\":\"" + timestamp + "\"";
+  }
+  body += "}";
+  int code = 0;
+  String response;
+  return request("POST", url, body, code, response) && code >= 200 && code < 300;
+}
+
+bool SupabaseClient::bridgeExists(const String &bridgeId) {
+  if (!isConfigured() || bridgeId.length() == 0) return false;
+
+  const String url = restUrl("/wol_bridges?select=id&id=eq." + queryEscape(bridgeId) + "&limit=1");
+  int code = 0;
+  String response;
+  if (!request("GET", url, "", code, response) || code < 200 || code >= 300) {
+    return false;
+  }
+
+  JsonDocument doc;
+  return deserializeJson(doc, response) == DeserializationError::Ok && doc.is<JsonArray>() && doc.size() > 0;
+}
+
+bool SupabaseClient::upsertDeviceByMac(const String &bridgeId, const String &name, const String &macAddress, const String &ipAddress, const String &broadcastIp, uint16_t port) {
+  if (!isConfigured() || bridgeId.length() == 0 || macAddress.length() == 0) return false;
+
+  const String findUrl = restUrl("/wol_devices?select=id&bridge_id=eq." + queryEscape(bridgeId) +
+                                 "&mac_address=eq." + queryEscape(macAddress) + "&limit=1");
+  int code = 0;
+  String response;
+  if (!request("GET", findUrl, "", code, response) || code < 200 || code >= 300) {
+    return false;
+  }
+
+  JsonDocument doc;
+  String deviceId;
+  if (deserializeJson(doc, response) == DeserializationError::Ok && doc.is<JsonArray>() && doc.size() > 0) {
+    deviceId = doc[0]["id"] | "";
+  }
+
+  const String safeName = name.length() > 0 ? name : String("PC");
+  const String safeBroadcast = broadcastIp.length() > 0 ? broadcastIp : String("255.255.255.255");
+
+  if (deviceId.length() > 0) {
+    const String url = restUrl("/wol_devices?id=eq." + queryEscape(deviceId));
+    String body = "{\"name\":\"" + jsonEscape(safeName) + "\",\"mac_address\":\"" + jsonEscape(macAddress) +
+                  "\",\"ip_address\":\"" + jsonEscape(ipAddress) + "\",\"broadcast_ip\":\"" + jsonEscape(safeBroadcast) +
+                  "\",\"port\":" + String(port) + ",\"enabled\":true,\"updated_at\":\"" + currentIsoTime() + "\"}";
+    int patchCode = 0;
+    String patchResponse;
+    return request("PATCH", url, body, patchCode, patchResponse) && patchCode >= 200 && patchCode < 300;
+  }
+
+  const String url = restUrl("/wol_devices");
+  String body = "{\"bridge_id\":\"" + jsonEscape(bridgeId) + "\",\"name\":\"" + jsonEscape(safeName) +
+                "\",\"mac_address\":\"" + jsonEscape(macAddress) + "\",\"ip_address\":\"" + jsonEscape(ipAddress) +
+                "\",\"broadcast_ip\":\"" + jsonEscape(safeBroadcast) + "\",\"port\":" + String(port) + ",\"enabled\":true}";
+  int insertCode = 0;
+  String insertResponse;
+  return request("POST", url, body, insertCode, insertResponse) && insertCode >= 200 && insertCode < 300;
+}
+
 bool SupabaseClient::fetchDevices(JsonDocument &doc) {
   if (!isConfigured()) return false;
 
-  const String url = restUrl("/wol_devices?select=id,name,ip_address,enabled&bridge_id=eq." +
+  const String url = restUrl("/wol_devices?select=id,name,ip_address,mac_address,broadcast_ip,port,enabled&bridge_id=eq." +
                             queryEscape(cfg.bridgeId) + "&enabled=eq.true");
   int code = 0;
   String response;

@@ -6,6 +6,7 @@
 #include "StatusMonitor.h"
 #include "DisplayManager.h"
 #include "NetworkDiscoveryManager.h"
+#include "LanDiscoveryManager.h"
 #include "SupabaseClient.h"
 #include "WebPortal.h"
 #include "WifiManager.h"
@@ -16,7 +17,8 @@ WifiManager wifiManager;
 SupabaseClient supabase;
 StatusMonitor statusMonitor(supabase);
 WolSender wolSender;
-WebPortal webPortal(configStore);
+LanDiscoveryManager lanDiscovery;
+WebPortal webPortal(configStore, supabase, lanDiscovery);
 DisplayManager display;
 NetworkDiscoveryManager discovery;
 
@@ -54,6 +56,7 @@ void setup() {
   configStore.begin();
   config = configStore.load();
   display.showBoot(config);
+  lanDiscovery.begin();
 
   wifiManager.beginAccessPoint(config);
   webPortal.begin(config);
@@ -94,6 +97,7 @@ void loop() {
 
   pollCommands();
   statusMonitor.tick();
+  lanDiscovery.tick();
   display.tick();
   delay(10);
 }
