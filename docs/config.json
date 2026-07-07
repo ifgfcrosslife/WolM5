@@ -1,4 +1,4 @@
 {
-  "supabaseUrl": "",
-  "supabaseKey": ""
+  "supabaseUrl": "https://kmhvcefbpkhsfahgrgpo.supabase.co",
+  "supabaseKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttaHZjZWZicGtoc2ZhaGdyZ3BvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMzODEzNTIsImV4cCI6MjA5ODk1NzM1Mn0.BrwaOGJzkyPZxe00fiDIxhUREW_x_5Ip3thspebfBhk"
 }
