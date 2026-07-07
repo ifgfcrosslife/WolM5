@@ -122,7 +122,7 @@ void DisplayManager::showConnecting(const String &ssid, bool hidden) {
 }
 
 void DisplayManager::showConnected(const String &localIp, const String &apIp) {
-  renderScreen(Mode::Connected, "ONLINE", "LAN " + localIp, "Connected", "AP " + apIp,
+  renderScreen(Mode::Connected, "ONLINE", "LAN", localIp, "AP " + apIp,
                "AP", "LAN", "READY", GREEN_565);
 }
 
@@ -215,16 +215,16 @@ void DisplayManager::initUi() {
   stateLabel = lv_label_create(card);
   lv_label_set_long_mode(stateLabel, LV_LABEL_LONG_DOT);
   lv_obj_set_width(stateLabel, 96);
-  lv_obj_align(stateLabel, LV_ALIGN_TOP_MID, 0, 20);
+  lv_obj_align(stateLabel, LV_ALIGN_TOP_MID, 0, 19);
   lv_obj_set_style_text_color(stateLabel, colorFrom565(TEXT), 0);
-  lv_obj_set_style_text_font(stateLabel, &lv_font_montserrat_18, 0);
+  lv_obj_set_style_text_font(stateLabel, &lv_font_montserrat_14, 0);
   lv_obj_set_style_text_align(stateLabel, LV_TEXT_ALIGN_CENTER, 0);
   lv_label_set_text(stateLabel, "BOOTING");
 
   detailLabel = lv_label_create(card);
   lv_label_set_long_mode(detailLabel, LV_LABEL_LONG_DOT);
   lv_obj_set_width(detailLabel, 96);
-  lv_obj_align(detailLabel, LV_ALIGN_TOP_MID, 0, 48);
+  lv_obj_align(detailLabel, LV_ALIGN_TOP_MID, 0, 46);
   lv_obj_set_style_text_color(detailLabel, colorFrom565(MUTED), 0);
   lv_obj_set_style_text_font(detailLabel, &lv_font_montserrat_12, 0);
   lv_obj_set_style_text_align(detailLabel, LV_TEXT_ALIGN_CENTER, 0);
@@ -325,7 +325,11 @@ void DisplayManager::renderScreen(Mode mode, const String &title, const String &
   } else {
     updateLabel(stateLabel, message);
   }
-  updateLabel(detailLabel, detail);
+  if (mode == Mode::Connected) {
+    updateLabel(detailLabel, "IP " + detail);
+  } else {
+    updateLabel(detailLabel, detail);
+  }
   updateLabel(footerLabel, footer);
 
   if (mode == Mode::Connected) {
