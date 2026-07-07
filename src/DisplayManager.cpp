@@ -72,7 +72,8 @@ void DisplayManager::begin() {
   lastTickMs = millis();
 }
 
-void DisplayManager::showBoot(const AppConfig &) {
+void DisplayManager::showBoot(const AppConfig &config) {
+  deviceTitle = config.deviceName.isEmpty() ? String("ATOMS3") : config.deviceName;
   renderScreen(Mode::Boot, "BOOT", "Starting", "Preparing bridge", "WiFi / AP / Supabase",
                "BOOT", "WAIT", "M5", AMBER_565);
 }
@@ -137,7 +138,7 @@ void DisplayManager::initUi() {
   lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
 
   titlePill = lv_obj_create(screen);
-  lv_obj_set_size(titlePill, 112, 18);
+  lv_obj_set_size(titlePill, 114, 18);
   lv_obj_align(titlePill, LV_ALIGN_TOP_MID, 0, 6);
   lv_obj_clear_flag(titlePill, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_radius(titlePill, 9, 0);
@@ -147,10 +148,10 @@ void DisplayManager::initUi() {
   lv_obj_set_style_pad_all(titlePill, 0, 0);
   lv_obj_set_style_shadow_width(titlePill, 0, 0);
 
-  lv_obj_t *titleLabel = lv_label_create(titlePill);
-  lv_label_set_text(titleLabel, "WOL M5 ATOM S3");
+  titleLabel = lv_label_create(titlePill);
+  lv_label_set_text(titleLabel, "ATOMS3");
   lv_label_set_long_mode(titleLabel, LV_LABEL_LONG_DOT);
-  lv_obj_set_width(titleLabel, 104);
+  lv_obj_set_width(titleLabel, 106);
   lv_obj_center(titleLabel);
   lv_obj_set_style_text_color(titleLabel, colorFrom565(MUTED), 0);
   lv_obj_set_style_text_font(titleLabel, &lv_font_montserrat_12, 0);
@@ -179,7 +180,7 @@ void DisplayManager::initUi() {
   lv_obj_set_width(stateLabel, 96);
   lv_obj_align(stateLabel, LV_ALIGN_TOP_MID, 0, 18);
   lv_obj_set_style_text_color(stateLabel, colorFrom565(TEXT), 0);
-  lv_obj_set_style_text_font(stateLabel, &lv_font_montserrat_24, 0);
+  lv_obj_set_style_text_font(stateLabel, &lv_font_montserrat_18, 0);
   lv_obj_set_style_text_align(stateLabel, LV_TEXT_ALIGN_CENTER, 0);
   lv_label_set_text(stateLabel, "BOOTING");
 
@@ -267,6 +268,10 @@ void DisplayManager::renderScreen(Mode mode, const String &title, const String &
   currentMiddleChip = middleText;
   currentRightChip = rightText;
   currentAccent = accentColor;
+
+  if (titleLabel) {
+    lv_label_set_text(titleLabel, labelText(deviceTitle.isEmpty() ? String("ATOMS3") : deviceTitle).c_str());
+  }
 
   lv_obj_set_style_bg_color(screen, colorFrom565(BG), 0);
   lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);

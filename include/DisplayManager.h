@@ -43,6 +43,7 @@ class DisplayManager {
 
   lv_obj_t *screen = nullptr;
   lv_obj_t *titlePill = nullptr;
+  lv_obj_t *titleLabel = nullptr;
   lv_obj_t *stateLabel = nullptr;
   lv_obj_t *detailLabel = nullptr;
   lv_obj_t *footerLabel = nullptr;
@@ -50,6 +51,7 @@ class DisplayManager {
   ChipUi leftChip;
   ChipUi middleChip;
   ChipUi rightChip;
+  String deviceTitle;
 
   void renderScreen(Mode mode, const String &title, const String &message, const String &detail,
                     const String &footer, const String &leftChip, const String &middleChip,
