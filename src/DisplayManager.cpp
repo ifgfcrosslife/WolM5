@@ -122,7 +122,7 @@ void DisplayManager::showConnecting(const String &ssid, bool hidden) {
 }
 
 void DisplayManager::showConnected(const String &localIp, const String &apIp) {
-  renderScreen(Mode::Connected, "ONLINE", "Ready", "LAN " + localIp, "AP " + apIp,
+  renderScreen(Mode::Connected, "ONLINE", "Connected", "LAN " + localIp, "AP " + apIp,
                "AP", "LAN", "READY", GREEN_565);
 }
 
@@ -195,7 +195,7 @@ void DisplayManager::initUi() {
 
   lv_obj_t *card = lv_obj_create(screen);
   lv_obj_set_size(card, 112, 68);
-  lv_obj_align(card, LV_ALIGN_TOP_MID, 0, 27);
+  lv_obj_align(card, LV_ALIGN_TOP_MID, 0, 28);
   lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_radius(card, 16, 0);
   lv_obj_set_style_bg_color(card, colorFrom565(PANEL), 0);
@@ -215,7 +215,7 @@ void DisplayManager::initUi() {
   stateLabel = lv_label_create(card);
   lv_label_set_long_mode(stateLabel, LV_LABEL_LONG_DOT);
   lv_obj_set_width(stateLabel, 96);
-  lv_obj_align(stateLabel, LV_ALIGN_TOP_MID, 0, 19);
+  lv_obj_align(stateLabel, LV_ALIGN_TOP_MID, 0, 20);
   lv_obj_set_style_text_color(stateLabel, colorFrom565(TEXT), 0);
   lv_obj_set_style_text_font(stateLabel, &lv_font_montserrat_18, 0);
   lv_obj_set_style_text_align(stateLabel, LV_TEXT_ALIGN_CENTER, 0);
@@ -224,7 +224,7 @@ void DisplayManager::initUi() {
   detailLabel = lv_label_create(card);
   lv_label_set_long_mode(detailLabel, LV_LABEL_LONG_DOT);
   lv_obj_set_width(detailLabel, 96);
-  lv_obj_align(detailLabel, LV_ALIGN_TOP_MID, 0, 47);
+  lv_obj_align(detailLabel, LV_ALIGN_TOP_MID, 0, 48);
   lv_obj_set_style_text_color(detailLabel, colorFrom565(MUTED), 0);
   lv_obj_set_style_text_font(detailLabel, &lv_font_montserrat_12, 0);
   lv_obj_set_style_text_align(detailLabel, LV_TEXT_ALIGN_CENTER, 0);
@@ -233,7 +233,7 @@ void DisplayManager::initUi() {
   footerLabel = lv_label_create(screen);
   lv_label_set_long_mode(footerLabel, LV_LABEL_LONG_DOT);
   lv_obj_set_width(footerLabel, 104);
-  lv_obj_align(footerLabel, LV_ALIGN_TOP_MID, 0, 97);
+  lv_obj_align(footerLabel, LV_ALIGN_TOP_MID, 0, 98);
   lv_obj_set_style_text_color(footerLabel, colorFrom565(MUTED), 0);
   lv_obj_set_style_text_font(footerLabel, &lv_font_montserrat_12, 0);
   lv_obj_set_style_text_align(footerLabel, LV_TEXT_ALIGN_CENTER, 0);
@@ -258,9 +258,9 @@ void DisplayManager::initUi() {
     return chip;
   };
 
-  leftChip = createChip(screen, 7, 108, 32);
-  middleChip = createChip(screen, 48, 108, 32);
-  rightChip = createChip(screen, 89, 108, 32);
+  leftChip = createChip(screen, 7, 107, 32);
+  middleChip = createChip(screen, 48, 107, 32);
+  rightChip = createChip(screen, 89, 107, 32);
 
   updateChip(leftChip, LV_SYMBOL_HOME, CHIP_TEXT, CHIPS_BG);
   updateChip(middleChip, LV_SYMBOL_WIFI, CHIP_TEXT, CHIPS_ALT);
@@ -314,7 +314,17 @@ void DisplayManager::renderScreen(Mode mode, const String &title, const String &
   lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
   lv_obj_set_style_bg_color(accentStrip, colorFrom565(accentColor), 0);
 
-  updateLabel(stateLabel, message);
+  if (mode == Mode::Connected) {
+    updateLabel(stateLabel, LV_SYMBOL_OK);
+  } else if (mode == Mode::Setup) {
+    updateLabel(stateLabel, LV_SYMBOL_WIFI);
+  } else if (mode == Mode::Connecting) {
+    updateLabel(stateLabel, LV_SYMBOL_REFRESH);
+  } else if (mode == Mode::Error) {
+    updateLabel(stateLabel, LV_SYMBOL_CLOSE);
+  } else {
+    updateLabel(stateLabel, message);
+  }
   updateLabel(detailLabel, detail);
   updateLabel(footerLabel, footer);
 
