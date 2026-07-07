@@ -46,42 +46,80 @@ Setup pertama:
 4. Isi WiFi lokal, Supabase URL, Supabase key, dan `bridge_id`.
 5. Save, lalu M5 restart dan mulai polling Supabase.
 
+## Frontend GitHub Pages
+
+Frontend portal ada di folder `docs/` supaya bisa langsung dipublish ke GitHub Pages.
+
+Alur deploy yang paling simpel:
+
+1. Buat repository baru di GitHub, lalu push folder ini ke repo itu.
+2. Di GitHub buka `Settings` > `Pages`.
+3. Pada `Build and deployment`, pilih `Deploy from a branch`.
+4. Pilih branch `main` dan folder `/docs`.
+5. Tunggu sampai URL Pages muncul, lalu buka portal dari sana.
+
+Portal frontend memakai `Supabase URL` dan `anon key` dari browser, jadi jangan pernah taruh `service_role key` di halaman publik. Supaya portal bisa membaca dan menulis data, nanti perlu policy Supabase yang sesuai untuk tabel `wol_bridges`, `wol_devices`, `wol_commands`, dan `wol_device_status`.
+
+Kalau kamu mau, alur berikutnya biasanya:
+
+1. Rapikan policy Supabase untuk portal GitHub Pages.
+2. Sambungkan frontend ini ke data asli.
+3. Baru kita lanjut bikin halaman utama portal publik dan dashboard status yang lebih halus.
+
 ## Draft Schema Supabase
 
 ```sql
+create extension if not exists pgcrypto;
+
+create table public.wol_bridges (
+  id text primary key,
+  name text not null default 'WOL Bridge',
+  local_ip inet,
+  ap_ip inet,
+  wifi_connected boolean not null default false,
+  last_seen_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create table public.wol_devices (
   id uuid primary key default gen_random_uuid(),
-  bridge_id text not null,
+  bridge_id text not null references public.wol_bridges(id) on delete cascade,
   name text not null,
   mac_address text not null,
-  ip_address text,
-  broadcast_ip text default '255.255.255.255',
-  wol_port integer default 9,
-  enabled boolean default true,
-  created_at timestamptz default now()
+  ip_address inet,
+  broadcast_ip inet not null default '255.255.255.255',
+  port integer not null default 9,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+
+create index wol_devices_bridge_enabled_idx on public.wol_devices (bridge_id, enabled);
 
 create table public.wol_commands (
   id uuid primary key default gen_random_uuid(),
-  bridge_id text not null,
+  bridge_id text not null references public.wol_bridges(id) on delete cascade,
   device_id uuid references public.wol_devices(id) on delete set null,
   mac_address text not null,
-  broadcast_ip text default '255.255.255.255',
-  port integer default 9,
+  broadcast_ip inet not null default '255.255.255.255',
+  port integer not null default 9,
   status text not null default 'pending',
   message text,
-  created_at timestamptz default now(),
+  created_at timestamptz not null default now(),
   processed_at timestamptz
 );
 
 create table public.wol_device_status (
   device_id uuid primary key references public.wol_devices(id) on delete cascade,
-  bridge_id text not null,
+  bridge_id text not null references public.wol_bridges(id) on delete cascade,
   online boolean not null default false,
-  ip_address text,
+  ip_address inet,
   latency_ms integer,
-  checked_at timestamptz default now()
+  checked_at timestamptz not null default now()
 );
 ```
 
-Untuk produksi, pakai RLS: frontend hanya boleh insert command dan membaca device/status miliknya, sedangkan M5 bridge diberi key atau mekanisme auth khusus. Pada tahap awal firmware ini memakai Supabase REST langsung agar backend dan frontend bisa dibangun bertahap.
+Untuk produksi, pakai RLS dan buat policy yang mengikuti cara frontend akan login nanti. Saat ini firmware M5 memakai REST langsung supaya backend dan portal bisa dibangun bertahap, jadi paling aman key M5 tetap diperlakukan sebagai secret device-side.
+
+File SQL siap pakai ada di [supabase/schema.sql](C:/Users/even/Documents/WOLM5/supabase/schema.sql).
