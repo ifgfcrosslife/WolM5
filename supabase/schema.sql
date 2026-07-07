@@ -255,7 +255,7 @@ alter table if exists public.wol_portal_config enable row level security;
 
 drop policy if exists "portal config deny select" on public.wol_portal_config;
 
-create or replace function public.portal_login(p_password text)
+create or replace function public.portal_login(password text)
 returns jsonb
 language plpgsql
 security definer
@@ -268,7 +268,7 @@ begin
   into cfg
   from public.wol_portal_config
   where id = 'default'
-    and portal_password_hash = crypt(p_password, portal_password_hash)
+    and portal_password_hash = crypt(password, portal_password_hash)
   limit 1;
 
   if not found then
