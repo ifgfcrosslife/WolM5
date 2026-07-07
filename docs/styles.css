@@ -22,6 +22,10 @@ body {
   color: var(--text);
 }
 
+.hidden {
+  display: none !important;
+}
+
 button, input, select {
   font: inherit;
 }
@@ -50,6 +54,57 @@ input:focus, select:focus {
   max-width: 1280px;
   margin: 0 auto;
   padding: 18px 14px 28px;
+}
+
+.auth-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 14px;
+}
+
+.auth-card {
+  width: min(760px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+}
+
+.auth-copy {
+  padding: 10px 8px 10px 6px;
+  align-self: center;
+}
+
+.auth-copy h1 {
+  margin-top: 0;
+}
+
+.auth-form {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.auth-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .topbar {
@@ -365,6 +420,9 @@ h1 {
 }
 
 @media (max-width: 960px) {
+  .auth-card {
+    grid-template-columns: 1fr;
+  }
   .status-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -375,6 +433,14 @@ h1 {
 }
 
 @media (max-width: 620px) {
+  .auth-screen {
+    padding: 12px;
+  }
+
+  .auth-card {
+    padding: 14px;
+  }
+
   .app-shell {
     padding: 12px;
   }

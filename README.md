@@ -58,9 +58,9 @@ Alur deploy yang paling simpel:
 4. Pilih branch `main` dan folder `/docs`.
 5. Tunggu sampai URL Pages muncul, lalu buka portal dari sana.
 
-Portal frontend memakai `Supabase URL` dan `anon key` dari browser, jadi jangan pernah taruh `service_role key` di halaman publik. Supaya portal bisa membaca dan menulis data, nanti perlu policy Supabase yang sesuai untuk tabel `wol_bridges`, `wol_devices`, `wol_commands`, dan `wol_device_status`.
-Untuk setup yang lebih aman, portal dan M5 sekarang juga memakai `Bridge Secret` yang sama. Secret ini jadi pengunci policy Supabase, jadi pastikan nilainya identik di GitHub Pages dan di halaman setup M5.
-Frontend GitHub Pages tidak menyimpan credential ke local browser; tombol `Save Settings` hanya memperbarui share link di address bar, jadi link itu bisa dibuka lagi dari device lain.
+Frontend GitHub Pages sekarang memakai login password-only. Password itu dipakai untuk membuka config Supabase dari `docs/config.json` atau dari bootstrap lama, lalu app mengambil `Supabase URL`, `anon key`, dan `Bridge Secret` dari database lewat RPC `portal_login`.
+Jangan pernah taruh `service_role key` di halaman publik. Untuk setup yang lebih aman, portal dan M5 tetap memakai `Bridge Secret` yang sama, dan policy Supabase mengunci akses berdasarkan secret itu.
+`docs/config.json` hanya untuk bootstrap masuk ke database. Isi file itu dengan `Supabase URL` dan `anon key` publik, lalu password digunakan untuk membuka config yang lebih lengkap dari Supabase.
 Di firmware M5 ada `Bridge Heartbeat ms` supaya `last_seen_at` di Supabase cuma di-update sesekali. Default-nya 15 menit, jadi polling WOL tetap cepat sementara penulisan timestamp tetap hemat.
 
 Kalau kamu mau, alur berikutnya biasanya:

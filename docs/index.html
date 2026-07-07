@@ -7,7 +7,27 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-  <div class="app-shell">
+  <section class="auth-screen" id="auth-screen">
+    <div class="auth-card">
+      <div class="auth-copy">
+        <p class="eyebrow">Supabase Login</p>
+        <h1>Masuk dulu</h1>
+        <p class="subtitle">Masukkan password untuk membuka config Supabase, lalu dashboard akan menarik URL, anon key, bridge secret, dan data terbaru.</p>
+      </div>
+      <form id="auth-form" class="auth-form">
+        <label class="field field-wide">
+          <span>Password</span>
+          <input id="auth-password" type="password" autocomplete="current-password" placeholder="••••••••">
+        </label>
+        <div class="form-actions">
+          <button class="primary-btn" id="auth-login-btn" type="submit">Login</button>
+        </div>
+        <div class="notice" id="auth-result">Login password akan membuka config Supabase dari database.</div>
+      </form>
+    </div>
+  </section>
+
+  <div class="app-shell hidden" id="app-shell">
     <header class="topbar">
       <div>
         <p class="eyebrow">Wake-on-LAN Portal</p>
@@ -15,6 +35,8 @@
         <p class="subtitle">Portal GitHub Pages untuk melihat daftar PC, status bridge, dan mengirim Wake-on-LAN dengan cepat.</p>
       </div>
       <div class="top-actions">
+        <span class="auth-pill" id="auth-user">Signed out</span>
+        <button class="ghost-btn" id="signout-btn" type="button">Logout</button>
         <button class="icon-btn" id="refresh-btn" type="button" title="Refresh all">
           <span aria-hidden="true">&#8635;</span>
         </button>

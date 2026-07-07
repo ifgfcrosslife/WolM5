@@ -236,3 +236,56 @@ grant select, insert, update, delete on public.wol_bridges to anon, authenticate
 grant select, insert, update, delete on public.wol_devices to anon, authenticated, service_role;
 grant select, insert, update, delete on public.wol_commands to anon, authenticated, service_role;
 grant select, insert, update, delete on public.wol_device_status to anon, authenticated, service_role;
+
+create table if not exists public.wol_portal_config (
+  id text primary key default 'default',
+  portal_password_hash text not null,
+  supabase_url text not null,
+  supabase_key text not null,
+  bridge_id text not null default 'm5-atom-s3',
+  bridge_secret text not null,
+  bridge_name text not null default 'Atom S3 Bridge',
+  default_broadcast text,
+  default_port integer not null default 9,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table if exists public.wol_portal_config enable row level security;
+
+drop policy if exists "portal config deny select" on public.wol_portal_config;
+
+create or replace function public.portal_login(p_password text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  cfg public.wol_portal_config%rowtype;
+begin
+  select *
+  into cfg
+  from public.wol_portal_config
+  where id = 'default'
+    and portal_password_hash = crypt(p_password, portal_password_hash)
+  limit 1;
+
+  if not found then
+    raise exception 'Invalid portal password' using errcode = '28P01';
+  end if;
+
+  return jsonb_build_object(
+    'supabaseUrl', cfg.supabase_url,
+    'supabaseKey', cfg.supabase_key,
+    'bridgeId', cfg.bridge_id,
+    'bridgeSecret', cfg.bridge_secret,
+    'bridgeName', cfg.bridge_name,
+    'defaultBroadcast', coalesce(cfg.default_broadcast, ''),
+    'defaultPort', cfg.default_port
+  );
+end;
+$$;
+
+revoke all on function public.portal_login(text) from public;
+grant execute on function public.portal_login(text) to anon, authenticated, service_role;

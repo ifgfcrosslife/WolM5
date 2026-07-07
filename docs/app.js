@@ -11,10 +11,20 @@ const state = {
   bridges: [],
   devices: [],
   commands: [],
-  statuses: []
+  statuses: [],
+  auth: {
+    unlocked: false
+  },
+  bootstrap: {
+    supabaseUrl: "",
+    supabaseKey: ""
+  }
 };
 
 const $ = (id) => document.getElementById(id);
+const BOOTSTRAP_STORAGE_KEY = "wolm5-bootstrap-settings";
+const SETTINGS_STORAGE_KEY = "wolm5-saved-settings";
+const BOOTSTRAP_CONFIG_URL = "./config.json";
 const jstFormatter = new Intl.DateTimeFormat("ja-JP", {
   timeZone: "Asia/Tokyo",
   year: "numeric",
@@ -28,29 +38,24 @@ const jstFormatter = new Intl.DateTimeFormat("ja-JP", {
 function readSettingsFromUrl() {
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   const read = (key) => params.get(key) || "";
-  const port = Number(read("defaultPort") || 9);
+  const storedSettings = readStoredSettings();
+  const port = Number(read("defaultPort") || storedSettings.defaultPort || 9);
   state.settings = {
     ...state.settings,
-    supabaseUrl: read("supabaseUrl"),
-    supabaseKey: read("supabaseKey"),
-    bridgeId: read("bridgeId") || state.settings.bridgeId,
-    bridgeSecret: read("bridgeSecret"),
-    bridgeName: read("bridgeName") || state.settings.bridgeName,
-    defaultBroadcast: read("defaultBroadcast"),
+    bridgeId: read("bridgeId") || storedSettings.bridgeId || state.settings.bridgeId,
+    bridgeName: read("bridgeName") || storedSettings.bridgeName || state.settings.bridgeName,
+    defaultBroadcast: read("defaultBroadcast") || storedSettings.defaultBroadcast || "",
     defaultPort: Number.isFinite(port) && port > 0 ? port : 9
   };
 }
 
 function writeSettingsToUrl(activeTab = "dashboard") {
   const params = new URLSearchParams();
-  params.set("supabaseUrl", state.settings.supabaseUrl || "");
-  params.set("supabaseKey", state.settings.supabaseKey || "");
+  params.set("tab", activeTab);
   params.set("bridgeId", state.settings.bridgeId || "");
-  params.set("bridgeSecret", state.settings.bridgeSecret || "");
   params.set("bridgeName", state.settings.bridgeName || "");
   params.set("defaultBroadcast", state.settings.defaultBroadcast || "");
   params.set("defaultPort", String(state.settings.defaultPort || 9));
-  params.set("tab", activeTab);
   history.replaceState(null, "", `${window.location.pathname}#${params.toString()}`);
 }
 
@@ -59,6 +64,41 @@ function setStatus(message, tone = "") {
   if (!box) return;
   box.textContent = message;
   box.className = `notice${tone ? ` ${tone}` : ""}`;
+}
+
+function readStoredSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function persistSettings() {
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
+      bridgeId: state.settings.bridgeId,
+      bridgeName: state.settings.bridgeName,
+      defaultBroadcast: state.settings.defaultBroadcast,
+      defaultPort: state.settings.defaultPort
+    }));
+  } catch (_) {}
+}
+
+function readBootstrapSettings() {
+  try {
+    const raw = localStorage.getItem(BOOTSTRAP_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function persistBootstrapSettings() {
+  try {
+    localStorage.setItem(BOOTSTRAP_STORAGE_KEY, JSON.stringify(state.bootstrap));
+  } catch (_) {}
 }
 
 function encodeQuery(params) {
@@ -77,6 +117,141 @@ function normalizeUrl(url) {
 
 function apiBase() {
   return normalizeUrl(state.settings.supabaseUrl);
+}
+
+async function loadBootstrapConfig() {
+  const stored = readBootstrapSettings();
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const fromHash = {
+    supabaseUrl: hashParams.get("supabaseUrl") || "",
+    supabaseKey: hashParams.get("supabaseKey") || ""
+  };
+
+  state.bootstrap = {
+    supabaseUrl: stored.supabaseUrl || fromHash.supabaseUrl,
+    supabaseKey: stored.supabaseKey || fromHash.supabaseKey
+  };
+
+  try {
+    const res = await fetch(BOOTSTRAP_CONFIG_URL, { cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      state.bootstrap = {
+        supabaseUrl: data.supabaseUrl || state.bootstrap.supabaseUrl || "",
+        supabaseKey: data.supabaseKey || data.anonKey || state.bootstrap.supabaseKey || ""
+      };
+    }
+  } catch (_) {}
+
+  if (!state.bootstrap.supabaseUrl || !state.bootstrap.supabaseKey) {
+    const fallback = readStoredSettings();
+    state.bootstrap.supabaseUrl = state.bootstrap.supabaseUrl || fallback.supabaseUrl || "";
+    state.bootstrap.supabaseKey = state.bootstrap.supabaseKey || fallback.supabaseKey || "";
+  }
+
+  persistBootstrapSettings();
+}
+
+function setAuthMessage(message, tone = "") {
+  const box = $("auth-result");
+  if (!box) return;
+  box.textContent = message;
+  box.className = `notice${tone ? ` ${tone}` : ""}`;
+}
+
+function toggleAppVisibility(isAuthed) {
+  $("auth-screen")?.classList.toggle("hidden", isAuthed);
+  $("app-shell")?.classList.toggle("hidden", !isAuthed);
+}
+
+function updateAuthUI() {
+  const signedIn = Boolean(state.auth.unlocked);
+  const userBox = $("auth-user");
+  const signoutBtn = $("signout-btn");
+  if (userBox) userBox.textContent = signedIn ? "Unlocked" : "Locked";
+  if (signoutBtn) signoutBtn.disabled = !signedIn;
+  toggleAppVisibility(signedIn);
+}
+
+function clearAuthState() {
+  state.auth.unlocked = false;
+  state.settings = {
+    supabaseUrl: "",
+    supabaseKey: "",
+    bridgeId: "m5-atom-s3",
+    bridgeSecret: "",
+    bridgeName: "Atom S3 Bridge",
+    defaultBroadcast: "",
+    defaultPort: 9
+  };
+  try {
+    localStorage.removeItem(SETTINGS_STORAGE_KEY);
+  } catch (_) {}
+  updateAuthUI();
+}
+
+async function unlockPortalWithPassword(event) {
+  if (event) event.preventDefault();
+  const password = $("auth-password").value;
+  if (!state.bootstrap.supabaseUrl || !state.bootstrap.supabaseKey) {
+    setAuthMessage("Bootstrap config belum ada. Isi `docs/config.json` dulu.", "fail");
+    return;
+  }
+  if (!password) {
+    setAuthMessage("Password wajib diisi.", "fail");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${normalizeUrl(state.bootstrap.supabaseUrl)}/rest/v1/rpc/portal_login`, {
+      method: "POST",
+      headers: {
+        apikey: state.bootstrap.supabaseKey,
+        Authorization: `Bearer ${state.bootstrap.supabaseKey}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.message || data?.hint || data?.msg || "Login gagal.");
+    }
+    state.settings.supabaseUrl = data.supabaseUrl || data.supabase_url || "";
+    state.settings.supabaseKey = data.supabaseKey || data.supabase_key || "";
+    state.settings.bridgeId = data.bridgeId || data.bridge_id || state.settings.bridgeId;
+    state.settings.bridgeSecret = data.bridgeSecret || data.bridge_secret || "";
+    state.settings.bridgeName = data.bridgeName || data.bridge_name || state.settings.bridgeName;
+    state.settings.defaultBroadcast = data.defaultBroadcast || data.default_broadcast || "";
+    state.settings.defaultPort = Number(data.defaultPort || data.default_port || state.settings.defaultPort || 9);
+    persistSettings();
+    state.auth.unlocked = true;
+    setAuthMessage("Login berhasil. Config dimuat dari Supabase.", "ok");
+    updateAuthUI();
+    loadSettingsToForm();
+    await refreshAll();
+  } catch (error) {
+    state.auth.unlocked = false;
+    updateAuthUI();
+    setAuthMessage(error.message || "Login gagal.", "fail");
+  }
+}
+
+async function signOut() {
+  state.auth.unlocked = false;
+  state.settings = {
+    supabaseUrl: "",
+    supabaseKey: "",
+    bridgeId: "m5-atom-s3",
+    bridgeSecret: "",
+    bridgeName: "Atom S3 Bridge",
+    defaultBroadcast: "",
+    defaultPort: 9
+  };
+  try {
+    localStorage.removeItem(SETTINGS_STORAGE_KEY);
+  } catch (_) {}
+  updateAuthUI();
+  setAuthMessage("Locked. Login lagi untuk lanjut.", "warn");
 }
 
 function authHeaders(preferReturn = false) {
@@ -114,7 +289,9 @@ async function request(path, options = {}) {
   }
   if (!res.ok) {
     const message = (data && data.message) || data || `HTTP ${res.status}`;
-    throw new Error(message);
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
   }
   return data;
 }
@@ -441,6 +618,7 @@ async function saveSettings(event) {
   state.settings.bridgeName = $("bridge-name").value.trim();
   state.settings.defaultBroadcast = $("default-broadcast").value.trim();
   state.settings.defaultPort = Number($("default-port").value || 9);
+  persistSettings();
   setTab("dashboard");
   writeSettingsToUrl("dashboard");
   setStatus("Share link updated.", "ok");
@@ -461,6 +639,15 @@ async function refreshAll() {
   const project = $("project-status");
   const bridge = $("bridge-status");
 
+  if (!state.auth.unlocked) {
+    if (project) project.textContent = "Locked";
+    if (bridge) bridge.textContent = "-";
+    renderOverview();
+    renderBridges();
+    renderDevices();
+    return;
+  }
+
   if (!state.settings.supabaseUrl || !state.settings.supabaseKey || !state.settings.bridgeId || !state.settings.bridgeSecret) {
     if (project) project.textContent = "Missing settings";
     if (bridge) bridge.textContent = state.settings.bridgeId || "-";
@@ -478,6 +665,11 @@ async function refreshAll() {
     renderBridges();
     renderDevices();
   } catch (error) {
+    if (error.status === 401 || error.status === 403) {
+      clearAuthState();
+      setAuthMessage("Akses Supabase ditolak. Login lagi ya.", "warn");
+      return;
+    }
     if (project) project.textContent = "Error";
     if (bridge) bridge.textContent = state.settings.bridgeId || "-";
     setStatus(error.message || "Refresh failed.", "fail");
@@ -505,6 +697,8 @@ function setupTabs() {
 }
 
 function setupEvents() {
+  $("auth-form").addEventListener("submit", unlockPortalWithPassword);
+  $("signout-btn").addEventListener("click", signOut);
   $("settings-form").addEventListener("submit", saveSettings);
   $("forget-settings-btn").addEventListener("click", () => {
     state.settings = {
@@ -516,6 +710,9 @@ function setupEvents() {
       defaultBroadcast: "",
       defaultPort: 9
     };
+    try {
+      localStorage.removeItem(SETTINGS_STORAGE_KEY);
+    } catch (_) {}
     loadSettingsToForm();
     history.replaceState(null, "", window.location.pathname);
     setStatus("Settings cleared.", "warn");
@@ -555,13 +752,19 @@ function setupEvents() {
 
 async function bootstrap() {
   readSettingsFromUrl();
+  await loadBootstrapConfig();
   loadSettingsToForm();
+  updateAuthUI();
   setupTabs();
   setupEvents();
   renderOverview();
   renderBridges();
   renderDevices();
-  await refreshAll();
+  if (state.auth.unlocked) {
+    await refreshAll();
+  } else {
+    setAuthMessage("Login dulu untuk memuat config dari Supabase.", "warn");
+  }
   setInterval(refreshAll, 30000);
 }
 
