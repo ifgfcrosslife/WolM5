@@ -12,6 +12,11 @@ const state = {
   devices: [],
   commands: [],
   statuses: [],
+  firmware: {
+    release: null,
+    checkedAt: null,
+    error: ""
+  },
   auth: {
     unlocked: false
   },
@@ -25,6 +30,7 @@ const $ = (id) => document.getElementById(id);
 const BOOTSTRAP_STORAGE_KEY = "wolm5-bootstrap-settings";
 const SETTINGS_STORAGE_KEY = "wolm5-saved-settings";
 const BOOTSTRAP_CONFIG_URL = "./config.json";
+const GITHUB_RELEASE_API = "https://api.github.com/repos/ifgfcrosslife/WolM5/releases/latest";
 const jstFormatter = new Intl.DateTimeFormat("ja-JP", {
   timeZone: "Asia/Tokyo",
   year: "numeric",
@@ -113,6 +119,10 @@ function encodeQuery(params) {
 
 function normalizeUrl(url) {
   return String(url || "").trim().replace(/\/$/, "");
+}
+
+function normalizeVersion(version) {
+  return String(version || "").trim().replace(/^v/i, "");
 }
 
 function apiBase() {
@@ -298,7 +308,7 @@ async function request(path, options = {}) {
 
 async function fetchBridges() {
   const query = encodeQuery({
-    select: "id,name,local_ip,ap_ip,wifi_connected,last_seen_at,updated_at",
+    select: "id,name,local_ip,ap_ip,wifi_connected,firmware_version,last_seen_at,updated_at",
     order: "updated_at.desc"
   });
   state.bridges = await request(`/wol_bridges?${query}`, { method: "GET" });
@@ -316,13 +326,50 @@ async function fetchDevices() {
 
 async function fetchCommands() {
   const query = encodeQuery({
-    select: "id,bridge_id,device_id,mac_address,broadcast_ip,port,status,message,created_at,processed_at",
+    select: "id,bridge_id,device_id,command_type,mac_address,broadcast_ip,port,firmware_url,firmware_version,firmware_sha256,progress,status,message,created_at,processed_at",
     bridge_id: `eq.${state.settings.bridgeId}`,
     order: "created_at.desc",
     limit: "20"
   });
   const commands = await request(`/wol_commands?${query}`, { method: "GET" });
   state.commands = Array.isArray(commands) ? commands : [];
+}
+
+async function checkFirmwareRelease() {
+  state.firmware.error = "";
+  try {
+    const res = await fetch(GITHUB_RELEASE_API, { cache: "no-store" });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.message || `GitHub HTTP ${res.status}`);
+    }
+
+    const assets = Array.isArray(data.assets) ? data.assets : [];
+    const firmwareAsset = assets.find((asset) => asset.name === "firmware.bin")
+      || assets.find((asset) => /\.bin$/i.test(asset.name || "") && !/littlefs|spiffs|filesystem/i.test(asset.name || ""));
+    const filesystemAsset = assets.find((asset) => /^(littlefs|filesystem|spiffs)\.bin$/i.test(asset.name || ""))
+      || assets.find((asset) => /\.bin$/i.test(asset.name || "") && /littlefs|spiffs|filesystem/i.test(asset.name || ""));
+    const shaAsset = assets.find((asset) => /sha256|checksum/i.test(asset.name || ""));
+    state.firmware.release = {
+      version: data.tag_name || data.name || "",
+      name: data.name || data.tag_name || "Latest release",
+      url: firmwareAsset?.browser_download_url || "",
+      assetName: firmwareAsset?.name || "",
+      filesystemUrl: filesystemAsset?.browser_download_url || "",
+      filesystemAssetName: filesystemAsset?.name || "",
+      notesUrl: data.html_url || "",
+      sha256Url: shaAsset?.browser_download_url || "",
+      publishedAt: data.published_at || ""
+    };
+    state.firmware.checkedAt = new Date().toISOString();
+    renderOverview();
+    setStatus(state.firmware.release.url ? `Firmware ${state.firmware.release.version} ditemukan di GitHub.` : "Release ditemukan, tapi asset firmware.bin belum ada.", state.firmware.release.url ? "ok" : "warn");
+  } catch (error) {
+    state.firmware.release = null;
+    state.firmware.error = error.message || "Gagal cek GitHub release.";
+    renderOverview();
+    setStatus(state.firmware.error, "fail");
+  }
 }
 
 async function fetchStatuses() {
@@ -358,6 +405,14 @@ function renderOverview() {
   const bridge = state.bridges.find((item) => item.id === state.settings.bridgeId);
   const deviceCount = state.devices.length;
   const onlineCount = state.statuses.filter((item) => item.online).length;
+  const latestRelease = state.firmware.release;
+  const latestUpdateCommand = state.commands.find((item) => item.command_type === "firmware_update");
+  const currentVersion = bridge?.firmware_version || "-";
+  const latestVersion = latestRelease?.version || "-";
+  const updateAvailable = Boolean(latestRelease?.url && bridge && normalizeVersion(currentVersion) !== normalizeVersion(latestVersion));
+  const updateStatus = latestUpdateCommand
+    ? `${latestUpdateCommand.status || "-"} ${latestUpdateCommand.progress ?? 0}%${latestUpdateCommand.message ? ` - ${latestUpdateCommand.message}` : ""}`
+    : "Belum ada update firmware.";
 
   const deviceCountEl = $("device-count");
   if (deviceCountEl) deviceCountEl.textContent = String(deviceCount);
@@ -373,6 +428,19 @@ function renderOverview() {
         <div class="status-card"><span class="label">Devices</span><strong>${deviceCount}</strong></div>
         <div class="status-card"><span class="label">Online</span><strong>${onlineCount}</strong></div>
         <div class="status-card"><span class="label">Bridge</span><strong>${bridge ? "Ready" : "Missing"}</strong></div>
+      </div>
+      <div class="firmware-card">
+        <div>
+          <span class="label">Firmware</span>
+          <strong>${escapeHtml(currentVersion)}</strong>
+          <p class="muted-text">GitHub: ${escapeHtml(latestVersion)}${latestRelease?.assetName ? ` (${escapeHtml(latestRelease.assetName)})` : ""}</p>
+          <p class="muted-text">Filesystem: ${escapeHtml(latestRelease?.filesystemAssetName || "optional")}</p>
+          <p class="muted-text">Update: ${escapeHtml(updateStatus)}</p>
+        </div>
+        <div class="row-actions">
+          <button class="secondary-btn" data-check-firmware type="button">Check GitHub</button>
+          <button class="primary-btn" data-update-firmware type="button" ${updateAvailable ? "" : "disabled"}>Update Firmware</button>
+        </div>
       </div>
     </div>
   `;
@@ -677,6 +745,46 @@ async function saveSettings(event) {
   }
 }
 
+async function sendFirmwareUpdate() {
+  try {
+    if (!state.firmware.release?.url) {
+      await checkFirmwareRelease();
+    }
+    const release = state.firmware.release;
+    if (!release?.url) {
+      throw new Error("Asset firmware.bin belum ditemukan di GitHub Release.");
+    }
+
+    await request("/wol_commands", {
+      method: "POST",
+      preferReturn: true,
+      body: JSON.stringify({
+        bridge_id: state.settings.bridgeId,
+        command_type: "firmware_update",
+        firmware_url: release.url,
+        firmware_version: release.version,
+        firmware_sha256: "",
+        filesystem_url: release.filesystemUrl || null,
+        filesystem_sha256: "",
+        progress: 0,
+        status: "pending",
+        message: `Queued firmware ${release.version}`
+      })
+    });
+    setStatus(`Update firmware ${release.version} dikirim ke bridge.`, "ok");
+    await refreshAll();
+  } catch (error) {
+    setStatus(error.message || "Failed to queue firmware update.", "fail");
+  }
+}
+
+async function refreshAllWithFirmwareCheck() {
+  await refreshAll();
+  if (!state.firmware.release && !state.firmware.error) {
+    await checkFirmwareRelease();
+  }
+}
+
 function loadSettingsToForm() {
   $("supabase-url").value = state.settings.supabaseUrl || "";
   $("supabase-key").value = state.settings.supabaseKey || "";
@@ -710,7 +818,7 @@ async function refreshAll() {
   }
 
   try {
-    await Promise.all([fetchBridges(), fetchDevices(), fetchStatuses()]);
+    await Promise.all([fetchBridges(), fetchDevices(), fetchStatuses(), fetchCommands()]);
     if (project) project.textContent = "Connected";
     if (bridge) bridge.textContent = bridgeStatusText();
     renderOverview();
@@ -788,10 +896,18 @@ function setupEvents() {
     const editId = event.target.closest("[data-edit-device]")?.dataset.editDevice;
     const sendId = event.target.closest("[data-send-wol]")?.dataset.sendWol;
     const toggleId = event.target.closest("[data-disable-device]")?.dataset.disableDevice;
+    const checkFirmware = event.target.closest("[data-check-firmware]");
+    const updateFirmware = event.target.closest("[data-update-firmware]");
     if (editId) {
       const row = state.devices.find((item) => item.id === editId);
       if (row) fillDeviceForm(row);
       setTab("devices");
+    }
+    if (checkFirmware) {
+      await checkFirmwareRelease();
+    }
+    if (updateFirmware) {
+      await sendFirmwareUpdate();
     }
     if (sendId) {
       await sendWake(sendId);
@@ -813,7 +929,7 @@ async function bootstrap() {
   renderBridges();
   renderDevices();
   if (state.auth.unlocked) {
-    await refreshAll();
+    await refreshAllWithFirmwareCheck();
   } else {
     setAuthMessage("Login dulu untuk memuat config dari Supabase.", "warn");
   }

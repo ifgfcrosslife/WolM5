@@ -7,10 +7,16 @@
 
 struct WolCommand {
   String id;
+  String commandType = "wake";
   String deviceId;
   String macAddress;
   String broadcastIp;
   uint16_t port = 9;
+  String firmwareUrl;
+  String firmwareVersion;
+  String firmwareSha256;
+  String filesystemUrl;
+  String filesystemSha256;
 };
 
 struct WolDeviceRecord {
@@ -29,6 +35,7 @@ class SupabaseClient {
   bool isConfigured() const;
   bool fetchNextCommand(WolCommand &command);
   bool markCommand(const String &commandId, const String &status, const String &message);
+  bool markCommandProgress(const String &commandId, int progress, const String &message);
   bool upsertDeviceStatus(const String &deviceId, bool online, const String &ipAddress, int latencyMs);
   bool upsertBridge(const String &bridgeId, const String &name, const String &localIp, const String &apIp, bool wifiConnected);
   bool bridgeExists(const String &bridgeId);

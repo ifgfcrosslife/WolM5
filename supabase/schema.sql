@@ -5,6 +5,7 @@ create table if not exists public.wol_bridges (
   name text not null default 'WOL Bridge',
   local_ip inet,
   ap_ip inet,
+  firmware_version text,
   bridge_secret text not null default gen_random_uuid()::text,
   wifi_connected boolean not null default false,
   last_seen_at timestamptz,
@@ -32,9 +33,18 @@ create table if not exists public.wol_commands (
   id uuid primary key default gen_random_uuid(),
   bridge_id text not null references public.wol_bridges(id) on delete cascade,
   device_id uuid references public.wol_devices(id) on delete set null,
-  mac_address text not null,
-  broadcast_ip inet not null default '255.255.255.255',
+  command_type text not null default 'wake'
+    check (command_type in ('wake', 'firmware_update')),
+  mac_address text not null default '',
+  broadcast_ip inet default '255.255.255.255',
   port integer not null default 9,
+  firmware_url text,
+  firmware_version text,
+  firmware_sha256 text,
+  filesystem_url text,
+  filesystem_sha256 text,
+  progress integer not null default 0
+    check (progress >= 0 and progress <= 100),
   status text not null default 'pending'
     check (status in ('pending', 'processing', 'done', 'failed', 'cancelled')),
   message text,
@@ -85,12 +95,45 @@ alter table public.wol_commands enable row level security;
 alter table public.wol_device_status enable row level security;
 
 alter table if exists public.wol_bridges add column if not exists bridge_secret text;
+alter table if exists public.wol_bridges add column if not exists firmware_version text;
 update public.wol_bridges
 set bridge_secret = coalesce(bridge_secret, gen_random_uuid()::text)
 where bridge_secret is null;
 alter table public.wol_bridges alter column bridge_secret set default gen_random_uuid()::text;
 alter table public.wol_bridges alter column bridge_secret set not null;
 create unique index if not exists wol_bridges_bridge_secret_idx on public.wol_bridges (bridge_secret);
+
+alter table if exists public.wol_commands add column if not exists command_type text not null default 'wake';
+alter table if exists public.wol_commands add column if not exists firmware_url text;
+alter table if exists public.wol_commands add column if not exists firmware_version text;
+alter table if exists public.wol_commands add column if not exists firmware_sha256 text;
+alter table if exists public.wol_commands add column if not exists filesystem_url text;
+alter table if exists public.wol_commands add column if not exists filesystem_sha256 text;
+alter table if exists public.wol_commands add column if not exists progress integer not null default 0;
+alter table if exists public.wol_commands alter column mac_address set default '';
+alter table if exists public.wol_commands alter column mac_address drop not null;
+alter table if exists public.wol_commands alter column broadcast_ip drop not null;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'wol_commands_command_type_check'
+  ) then
+    alter table public.wol_commands
+      add constraint wol_commands_command_type_check
+      check (command_type in ('wake', 'firmware_update'));
+  end if;
+
+  if not exists (
+    select 1 from pg_constraint
+    where conname = 'wol_commands_progress_check'
+  ) then
+    alter table public.wol_commands
+      add constraint wol_commands_progress_check
+      check (progress >= 0 and progress <= 100);
+  end if;
+end $$;
 
 create or replace function public.request_headers_json()
 returns jsonb

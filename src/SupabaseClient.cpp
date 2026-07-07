@@ -66,7 +66,7 @@ bool SupabaseClient::isConfigured() const {
 bool SupabaseClient::fetchNextCommand(WolCommand &command) {
   if (!isConfigured()) return false;
 
-  const String url = restUrl("/wol_commands?select=id,device_id,mac_address,broadcast_ip,port&bridge_id=eq." +
+  const String url = restUrl("/wol_commands?select=id,command_type,device_id,mac_address,broadcast_ip,port,firmware_url,firmware_version,firmware_sha256,filesystem_url,filesystem_sha256&bridge_id=eq." +
                             queryEscape(cfg.bridgeId) + "&status=eq.pending&order=created_at.asc&limit=1");
   int code = 0;
   String response;
@@ -81,10 +81,19 @@ bool SupabaseClient::fetchNextCommand(WolCommand &command) {
 
   JsonObject row = doc[0];
   command.id = row["id"] | "";
+  command.commandType = row["command_type"] | "wake";
   command.deviceId = row["device_id"] | "";
   command.macAddress = row["mac_address"] | "";
   command.broadcastIp = row["broadcast_ip"] | "255.255.255.255";
   command.port = row["port"] | 9;
+  command.firmwareUrl = row["firmware_url"] | "";
+  command.firmwareVersion = row["firmware_version"] | "";
+  command.firmwareSha256 = row["firmware_sha256"] | "";
+  command.filesystemUrl = row["filesystem_url"] | "";
+  command.filesystemSha256 = row["filesystem_sha256"] | "";
+  if (command.commandType == "firmware_update") {
+    return command.id.length() > 0 && command.firmwareUrl.length() > 0;
+  }
   return command.id.length() > 0 && command.macAddress.length() > 0;
 }
 
@@ -98,6 +107,19 @@ bool SupabaseClient::markCommand(const String &commandId, const String &status, 
     body += ",\"processed_at\":\"" + timestamp + "\"";
   }
   body += "}";
+  int code = 0;
+  String response;
+  return request("PATCH", url, body, code, response) && code >= 200 && code < 300;
+}
+
+bool SupabaseClient::markCommandProgress(const String &commandId, int progress, const String &message) {
+  if (!isConfigured() || commandId.length() == 0) return false;
+
+  if (progress < 0) progress = 0;
+  if (progress > 100) progress = 100;
+
+  const String url = restUrl("/wol_commands?id=eq." + queryEscape(commandId));
+  String body = "{\"progress\":" + String(progress) + ",\"message\":\"" + jsonEscape(message) + "\"}";
   int code = 0;
   String response;
   return request("PATCH", url, body, code, response) && code >= 200 && code < 300;
@@ -127,6 +149,7 @@ bool SupabaseClient::upsertBridge(const String &bridgeId, const String &name, co
   String body = "{\"id\":\"" + jsonEscape(bridgeId) + "\",\"name\":\"" + jsonEscape(name) +
                 "\",\"bridge_secret\":\"" + jsonEscape(cfg.bridgeSecret) +
                 "\",\"local_ip\":\"" + jsonEscape(localIp) + "\",\"ap_ip\":\"" + jsonEscape(apIp) +
+                "\",\"firmware_version\":\"" + jsonEscape(APP_VERSION) +
                 "\",\"wifi_connected\":" + String(wifiConnected ? "true" : "false");
   const String timestamp = currentIsoTime();
   if (timestamp.length() > 0) {

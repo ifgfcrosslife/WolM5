@@ -5,6 +5,7 @@
 #include "ConfigStore.h"
 #include "StatusMonitor.h"
 #include "DisplayManager.h"
+#include "FirmwareUpdater.h"
 #include "NetworkDiscoveryManager.h"
 #include "LanDiscoveryManager.h"
 #include "SupabaseClient.h"
@@ -17,6 +18,7 @@ WifiManager wifiManager;
 SupabaseClient supabase;
 StatusMonitor statusMonitor(supabase);
 WolSender wolSender;
+FirmwareUpdater firmwareUpdater;
 LanDiscoveryManager lanDiscovery;
 WebPortal webPortal(configStore, supabase, lanDiscovery);
 DisplayManager display;
@@ -64,6 +66,24 @@ void pollCommands() {
   }
 
   supabase.markCommand(command.id, "processing", "M5 bridge accepted command");
+  if (command.commandType == "firmware_update") {
+    String message;
+    if (command.filesystemUrl.length() > 0) {
+      const bool fsUpdated = firmwareUpdater.updateFilesystem(command.filesystemUrl, command.filesystemSha256, supabase, command.id, message);
+      if (!fsUpdated) {
+        supabase.markCommand(command.id, "failed", message);
+        return;
+      }
+    }
+    const bool updated = firmwareUpdater.updateFirmware(command.firmwareUrl, command.firmwareSha256, supabase, command.id, message);
+    supabase.markCommand(command.id, updated ? "done" : "failed", message);
+    if (updated) {
+      delay(800);
+      ESP.restart();
+    }
+    return;
+  }
+
   const bool sent = wolSender.send(command.macAddress, command.broadcastIp, command.port);
   supabase.markCommand(command.id, sent ? "done" : "failed", sent ? "Magic packet sent" : "Failed to send magic packet");
 }

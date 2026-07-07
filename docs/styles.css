@@ -35,6 +35,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 input, select {
   width: 100%;
   border: 1px solid var(--line);
@@ -174,6 +179,34 @@ h1 {
   display: block;
   margin-top: 6px;
   font-size: 15px;
+}
+
+.firmware-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fbfcfb;
+}
+
+.firmware-card .label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.firmware-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 16px;
+}
+
+.firmware-card p {
+  margin: 4px 0 0;
+  font-size: 12px;
 }
 
 .tabs {
@@ -473,7 +506,8 @@ h1 {
 
   .form-actions,
   .top-actions,
-  .row-actions {
+  .row-actions,
+  .firmware-card {
     flex-direction: column;
     align-items: stretch;
   }
