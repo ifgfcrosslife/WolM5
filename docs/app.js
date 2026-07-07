@@ -1,5 +1,3 @@
-const storageKey = "wolm5-frontend-settings";
-
 const state = {
   settings: {
     supabaseUrl: "",
@@ -18,17 +16,34 @@ const state = {
 
 const $ = (id) => document.getElementById(id);
 
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(storageKey);
-    if (!raw) return;
-    const saved = JSON.parse(raw);
-    state.settings = { ...state.settings, ...saved };
-  } catch (_) {}
+function readSettingsFromUrl() {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const read = (key) => params.get(key) || "";
+  const port = Number(read("defaultPort") || 9);
+  state.settings = {
+    ...state.settings,
+    supabaseUrl: read("supabaseUrl"),
+    supabaseKey: read("supabaseKey"),
+    bridgeId: read("bridgeId") || state.settings.bridgeId,
+    bridgeSecret: read("bridgeSecret"),
+    bridgeName: read("bridgeName") || state.settings.bridgeName,
+    defaultBroadcast: read("defaultBroadcast"),
+    defaultPort: Number.isFinite(port) && port > 0 ? port : 9
+  };
 }
 
-function saveSettingsToStorage() {
-  localStorage.setItem(storageKey, JSON.stringify(state.settings));
+function writeSettingsToUrl() {
+  const params = new URLSearchParams();
+  params.set("supabaseUrl", state.settings.supabaseUrl || "");
+  params.set("supabaseKey", state.settings.supabaseKey || "");
+  params.set("bridgeId", state.settings.bridgeId || "");
+  params.set("bridgeSecret", state.settings.bridgeSecret || "");
+  params.set("bridgeName", state.settings.bridgeName || "");
+  params.set("defaultBroadcast", state.settings.defaultBroadcast || "");
+  params.set("defaultPort", String(state.settings.defaultPort || 9));
+  const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "dashboard";
+  params.set("tab", activeTab);
+  history.replaceState(null, "", `${window.location.pathname}#${params.toString()}`);
 }
 
 function setStatus(message, tone = "") {
@@ -139,6 +154,17 @@ function bridgeStatusText() {
   const row = state.bridges.find((item) => item.id === state.settings.bridgeId);
   if (!row) return "-";
   return row.name || row.id;
+}
+
+function renderBridges() {
+  renderTable("bridges-table", state.bridges, [
+    { label: "ID", key: "id" },
+    { label: "Name", key: "name" },
+    { label: "Local IP", key: "local_ip" },
+    { label: "AP IP", key: "ap_ip" },
+    { label: "WiFi", render: (row) => row.wifi_connected ? `<span class="chip">connected</span>` : `<span class="muted-text">setup</span>` },
+    { label: "Updated", key: "updated_at" }
+  ], "Belum ada bridge di Supabase.");
 }
 
 function renderOverview() {
@@ -397,8 +423,8 @@ async function saveSettings(event) {
   state.settings.bridgeName = $("bridge-name").value.trim();
   state.settings.defaultBroadcast = $("default-broadcast").value.trim();
   state.settings.defaultPort = Number($("default-port").value || 9);
-  saveSettingsToStorage();
-  setStatus("Settings saved locally.", "ok");
+  writeSettingsToUrl();
+  setStatus("Share link updated.", "ok");
   await refreshAll();
 }
 
@@ -420,6 +446,7 @@ async function refreshAll() {
     if (project) project.textContent = "Missing settings";
     if (bridge) bridge.textContent = state.settings.bridgeId || "-";
     renderOverview();
+    renderBridges();
     renderDevices();
     return;
   }
@@ -429,12 +456,14 @@ async function refreshAll() {
     if (project) project.textContent = "Connected";
     if (bridge) bridge.textContent = bridgeStatusText();
     renderOverview();
+    renderBridges();
     renderDevices();
   } catch (error) {
     if (project) project.textContent = "Error";
     if (bridge) bridge.textContent = state.settings.bridgeId || "-";
     setStatus(error.message || "Refresh failed.", "fail");
     renderOverview();
+    renderBridges();
   }
 }
 
@@ -445,21 +474,20 @@ function setTab(name) {
   document.querySelectorAll(".panel").forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.panel === name);
   });
-  localStorage.setItem("wolm5-active-tab", name);
 }
 
 function setupTabs() {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => setTab(btn.dataset.tab));
   });
-  const savedTab = localStorage.getItem("wolm5-active-tab") || "dashboard";
-  setTab(["dashboard", "devices", "settings"].includes(savedTab) ? savedTab : "dashboard");
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const tab = hash.get("tab") || "dashboard";
+  setTab(["dashboard", "bridges", "devices", "settings"].includes(tab) ? tab : "dashboard");
 }
 
 function setupEvents() {
   $("settings-form").addEventListener("submit", saveSettings);
   $("forget-settings-btn").addEventListener("click", () => {
-    localStorage.removeItem(storageKey);
     state.settings = {
       supabaseUrl: "",
       supabaseKey: "",
@@ -470,8 +498,18 @@ function setupEvents() {
       defaultPort: 9
     };
     loadSettingsToForm();
+    history.replaceState(null, "", window.location.pathname);
     setStatus("Settings cleared.", "warn");
     refreshAll();
+  });
+  $("copy-link-btn").addEventListener("click", async () => {
+    writeSettingsToUrl();
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setStatus("Share link copied.", "ok");
+    } catch (_) {
+      setStatus("Copy failed. Link sudah diperbarui di address bar.", "warn");
+    }
   });
   $("refresh-btn").addEventListener("click", refreshAll);
   $("test-conn-btn").addEventListener("click", testConnection);
@@ -497,11 +535,12 @@ function setupEvents() {
 }
 
 async function bootstrap() {
-  loadSettings();
+  readSettingsFromUrl();
   loadSettingsToForm();
   setupTabs();
   setupEvents();
   renderOverview();
+  renderBridges();
   renderDevices();
   await refreshAll();
   setInterval(refreshAll, 30000);

@@ -12,7 +12,7 @@
       <div>
         <p class="eyebrow">Wake-on-LAN Portal</p>
         <h1>WOL Control Center</h1>
-        <p class="subtitle">Portal GitHub Pages untuk melihat daftar PC dan mengirim Wake-on-LAN dengan cepat.</p>
+        <p class="subtitle">Portal GitHub Pages untuk melihat daftar PC, status bridge, dan mengirim Wake-on-LAN dengan cepat.</p>
       </div>
       <div class="top-actions">
         <button class="icon-btn" id="refresh-btn" type="button" title="Refresh all">
@@ -38,6 +38,7 @@
 
     <nav class="tabs" id="tabs">
       <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
+      <button class="tab-btn" data-tab="bridges" type="button">Bridge</button>
       <button class="tab-btn" data-tab="devices" type="button">Devices</button>
       <button class="tab-btn" data-tab="settings" type="button">Settings</button>
     </nav>
@@ -65,6 +66,18 @@
             </div>
           </article>
         </div>
+      </section>
+
+      <section class="panel" data-panel="bridges">
+        <article class="card">
+          <header class="card-head">
+            <h2>Bridge Registry</h2>
+            <p>Data bridge yang cocok dengan Bridge ID dan Bridge Secret yang sedang aktif.</p>
+          </header>
+          <div class="card-body">
+            <div id="bridges-table" class="data-block"></div>
+          </div>
+        </article>
       </section>
 
       <section class="panel" data-panel="devices">
@@ -126,7 +139,7 @@
           <article class="card">
             <header class="card-head">
               <h2>Supabase Settings</h2>
-              <p>Semua credential disimpan lokal di browser kamu. Tombol Save Settings hanya menyimpan isi form ini di browser ini saja.</p>
+              <p>Semua setting disimpan ke URL shareable, jadi tidak hilang saat pindah device. Tombol Save Settings memperbarui link itu.</p>
             </header>
             <div class="card-body">
               <form id="settings-form" class="form-grid">
@@ -160,10 +173,11 @@
                 </label>
                 <div class="form-actions">
                   <button class="secondary-btn" id="test-conn-btn" type="button">Test Connection</button>
+                  <button class="secondary-btn" id="copy-link-btn" type="button">Copy Link</button>
                   <button class="primary-btn" type="submit">Save Settings</button>
                   <button class="ghost-btn" id="forget-settings-btn" type="button">Forget</button>
                 </div>
-                <div class="notice" id="action-result">Save Settings menyimpan URL, anon key, Bridge ID, Bridge Secret, dan default device lokal di browser ini.</div>
+                <div class="notice" id="action-result">Save Settings memperbarui share link. Buka link yang sama di device lain untuk membawa setting yang sama.</div>
               </form>
             </div>
           </article>

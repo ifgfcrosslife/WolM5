@@ -60,6 +60,7 @@ Alur deploy yang paling simpel:
 
 Portal frontend memakai `Supabase URL` dan `anon key` dari browser, jadi jangan pernah taruh `service_role key` di halaman publik. Supaya portal bisa membaca dan menulis data, nanti perlu policy Supabase yang sesuai untuk tabel `wol_bridges`, `wol_devices`, `wol_commands`, dan `wol_device_status`.
 Untuk setup yang lebih aman, portal dan M5 sekarang juga memakai `Bridge Secret` yang sama. Secret ini jadi pengunci policy Supabase, jadi pastikan nilainya identik di GitHub Pages dan di halaman setup M5.
+Frontend GitHub Pages tidak menyimpan credential ke local browser; tombol `Save Settings` hanya memperbarui share link di address bar, jadi link itu bisa dibuka lagi dari device lain.
 
 Kalau kamu mau, alur berikutnya biasanya:
 
