@@ -12,6 +12,10 @@ class DisplayManager {
   void showConnected(const String &localIp, const String &apIp);
   void showSetupMode(const String &apIp);
   void showError(const String &message);
+  void handleInput();
+  void sleep();
+  void wake();
+  bool isScreenOn() const;
   void tick();
 
  private:
@@ -39,7 +43,11 @@ class DisplayManager {
   uint16_t currentAccent = 0;
   bool dirty = true;
   bool uiReady = false;
+  bool screenOn = true;
+  bool forceRedraw = false;
   uint32_t lastTickMs = 0;
+  uint32_t sleepAtMs = 0;
+  uint32_t screenTimeoutMs = 60000;
 
   lv_obj_t *screen = nullptr;
   lv_obj_t *titlePill = nullptr;

@@ -107,6 +107,9 @@ void DisplayManager::begin() {
   initUi();
   dirty = true;
   lastTickMs = millis();
+  screenOn = true;
+  sleepAtMs = lastTickMs + screenTimeoutMs;
+  forceRedraw = true;
 }
 
 void DisplayManager::showBoot(const AppConfig &config) {
@@ -136,8 +139,58 @@ void DisplayManager::showError(const String &message) {
                "AP", "ERR", "STOP", RED_565);
 }
 
+bool DisplayManager::isScreenOn() const {
+  return screenOn;
+}
+
+void DisplayManager::sleep() {
+  if (!screenOn) {
+    return;
+  }
+  screenOn = false;
+  M5.Display.setBrightness(0);
+  M5.Display.sleep();
+}
+
+void DisplayManager::wake() {
+  if (screenOn) {
+    sleepAtMs = millis() + screenTimeoutMs;
+    return;
+  }
+
+  screenOn = true;
+  M5.Display.wakeup();
+  M5.Display.setBrightness(190);
+  M5.Display.fillScreen(BG);
+  forceRedraw = true;
+  dirty = true;
+  sleepAtMs = millis() + screenTimeoutMs;
+}
+
+void DisplayManager::handleInput() {
+  M5.update();
+
+  const bool togglePressed = M5.BtnB.wasClicked();
+  if (togglePressed) {
+    if (screenOn) {
+      sleep();
+      return;
+    }
+    wake();
+    return;
+  }
+
+  if (screenOn && sleepAtMs != 0 && millis() >= sleepAtMs) {
+    sleep();
+  }
+}
+
 void DisplayManager::tick() {
   if (!lvglReady) {
+    return;
+  }
+
+  if (!screenOn) {
     return;
   }
 
@@ -292,7 +345,7 @@ void DisplayManager::renderScreen(Mode mode, const String &title, const String &
     initUi();
   }
 
-  if (sameState(mode, title, message, detail, footer, leftText, middleText, rightText, accentColor)) {
+  if (!forceRedraw && sameState(mode, title, message, detail, footer, leftText, middleText, rightText, accentColor)) {
     return;
   }
 
@@ -349,4 +402,6 @@ void DisplayManager::renderScreen(Mode mode, const String &title, const String &
     updateChip(this->middleChip, "WAIT", CHIP_TEXT, CHIPS_ALT);
     updateChip(this->rightChip, "M5", CHIP_TEXT, CHIPS_SOFT);
   }
+
+  forceRedraw = false;
 }

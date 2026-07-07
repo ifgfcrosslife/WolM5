@@ -74,6 +74,7 @@ void setup() {
 
 void loop() {
   webPortal.handle();
+  display.handleInput();
 
   if (webPortal.restartRequested()) {
     delay(800);
