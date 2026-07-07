@@ -34,6 +34,43 @@ String labelText(const String &text) {
   return text.isEmpty() ? String(" ") : text;
 }
 
+String chipSymbol(const String &token) {
+  if (token == "READY") {
+    return LV_SYMBOL_OK;
+  }
+  if (token == "AP") {
+    return LV_SYMBOL_HOME;
+  }
+  if (token == "LAN") {
+    return LV_SYMBOL_WIFI;
+  }
+  if (token == "WIFI") {
+    return LV_SYMBOL_WIFI;
+  }
+  if (token == "SCAN") {
+    return LV_SYMBOL_REFRESH;
+  }
+  if (token == "TRY") {
+    return LV_SYMBOL_REFRESH;
+  }
+  if (token == "SETUP") {
+    return LV_SYMBOL_EDIT;
+  }
+  if (token == "WAIT") {
+    return LV_SYMBOL_REFRESH;
+  }
+  if (token == "ERR") {
+    return LV_SYMBOL_CLOSE;
+  }
+  if (token == "STOP") {
+    return LV_SYMBOL_CLOSE;
+  }
+  if (token == "M5") {
+    return LV_SYMBOL_HOME;
+  }
+  return token;
+}
+
 void flushCb(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
   const int32_t width = area->x2 - area->x1 + 1;
   const int32_t height = area->y2 - area->y1 + 1;
@@ -139,7 +176,7 @@ void DisplayManager::initUi() {
 
   titlePill = lv_obj_create(screen);
   lv_obj_set_size(titlePill, 114, 18);
-  lv_obj_align(titlePill, LV_ALIGN_TOP_MID, 0, 6);
+  lv_obj_align(titlePill, LV_ALIGN_TOP_MID, 0, 5);
   lv_obj_clear_flag(titlePill, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_radius(titlePill, 9, 0);
   lv_obj_set_style_bg_color(titlePill, colorFrom565(PANEL), 0);
@@ -157,8 +194,8 @@ void DisplayManager::initUi() {
   lv_obj_set_style_text_font(titleLabel, &lv_font_montserrat_12, 0);
 
   lv_obj_t *card = lv_obj_create(screen);
-  lv_obj_set_size(card, 112, 66);
-  lv_obj_align(card, LV_ALIGN_TOP_MID, 0, 28);
+  lv_obj_set_size(card, 112, 68);
+  lv_obj_align(card, LV_ALIGN_TOP_MID, 0, 27);
   lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_radius(card, 16, 0);
   lv_obj_set_style_bg_color(card, colorFrom565(PANEL), 0);
@@ -169,7 +206,7 @@ void DisplayManager::initUi() {
 
   accentStrip = lv_obj_create(card);
   lv_obj_set_size(accentStrip, 100, 3);
-  lv_obj_align(accentStrip, LV_ALIGN_TOP_MID, 0, 4);
+  lv_obj_align(accentStrip, LV_ALIGN_TOP_MID, 0, 5);
   lv_obj_clear_flag(accentStrip, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_set_style_radius(accentStrip, 2, 0);
   lv_obj_set_style_border_width(accentStrip, 0, 0);
@@ -178,7 +215,7 @@ void DisplayManager::initUi() {
   stateLabel = lv_label_create(card);
   lv_label_set_long_mode(stateLabel, LV_LABEL_LONG_DOT);
   lv_obj_set_width(stateLabel, 96);
-  lv_obj_align(stateLabel, LV_ALIGN_TOP_MID, 0, 18);
+  lv_obj_align(stateLabel, LV_ALIGN_TOP_MID, 0, 19);
   lv_obj_set_style_text_color(stateLabel, colorFrom565(TEXT), 0);
   lv_obj_set_style_text_font(stateLabel, &lv_font_montserrat_18, 0);
   lv_obj_set_style_text_align(stateLabel, LV_TEXT_ALIGN_CENTER, 0);
@@ -187,7 +224,7 @@ void DisplayManager::initUi() {
   detailLabel = lv_label_create(card);
   lv_label_set_long_mode(detailLabel, LV_LABEL_LONG_DOT);
   lv_obj_set_width(detailLabel, 96);
-  lv_obj_align(detailLabel, LV_ALIGN_TOP_MID, 0, 46);
+  lv_obj_align(detailLabel, LV_ALIGN_TOP_MID, 0, 47);
   lv_obj_set_style_text_color(detailLabel, colorFrom565(MUTED), 0);
   lv_obj_set_style_text_font(detailLabel, &lv_font_montserrat_12, 0);
   lv_obj_set_style_text_align(detailLabel, LV_TEXT_ALIGN_CENTER, 0);
@@ -196,7 +233,7 @@ void DisplayManager::initUi() {
   footerLabel = lv_label_create(screen);
   lv_label_set_long_mode(footerLabel, LV_LABEL_LONG_DOT);
   lv_obj_set_width(footerLabel, 104);
-  lv_obj_align(footerLabel, LV_ALIGN_TOP_MID, 0, 96);
+  lv_obj_align(footerLabel, LV_ALIGN_TOP_MID, 0, 97);
   lv_obj_set_style_text_color(footerLabel, colorFrom565(MUTED), 0);
   lv_obj_set_style_text_font(footerLabel, &lv_font_montserrat_12, 0);
   lv_obj_set_style_text_align(footerLabel, LV_TEXT_ALIGN_CENTER, 0);
@@ -214,20 +251,20 @@ void DisplayManager::initUi() {
     lv_obj_set_style_shadow_width(chip.container, 0, 0);
     chip.label = lv_label_create(chip.container);
     lv_label_set_long_mode(chip.label, LV_LABEL_LONG_DOT);
-    lv_obj_set_width(chip.label, w - 10);
+    lv_obj_set_width(chip.label, w - 8);
     lv_obj_center(chip.label);
     lv_obj_set_style_text_font(chip.label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_align(chip.label, LV_TEXT_ALIGN_CENTER, 0);
     return chip;
   };
 
-  leftChip = createChip(screen, 8, 108, 34);
-  middleChip = createChip(screen, 47, 108, 34);
-  rightChip = createChip(screen, 86, 108, 34);
+  leftChip = createChip(screen, 7, 108, 32);
+  middleChip = createChip(screen, 48, 108, 32);
+  rightChip = createChip(screen, 89, 108, 32);
 
-  updateChip(leftChip, "BOOT", CHIP_TEXT, CHIPS_BG);
-  updateChip(middleChip, "WAIT", CHIP_TEXT, CHIPS_ALT);
-  updateChip(rightChip, "M5", CHIP_TEXT, CHIPS_SOFT);
+  updateChip(leftChip, LV_SYMBOL_HOME, CHIP_TEXT, CHIPS_BG);
+  updateChip(middleChip, LV_SYMBOL_WIFI, CHIP_TEXT, CHIPS_ALT);
+  updateChip(rightChip, LV_SYMBOL_OK, CHIP_TEXT, CHIPS_SOFT);
 
   uiReady = true;
 }
@@ -244,7 +281,7 @@ void DisplayManager::updateChip(ChipUi &chip, const String &text, uint16_t fg, u
     return;
   }
   lv_obj_set_style_bg_color(chip.container, colorFrom565(bg), 0);
-  lv_label_set_text(chip.label, labelText(text).c_str());
+  lv_label_set_text(chip.label, labelText(chipSymbol(text)).c_str());
   lv_obj_set_style_text_color(chip.label, colorFrom565(fg), 0);
 }
 
@@ -282,20 +319,20 @@ void DisplayManager::renderScreen(Mode mode, const String &title, const String &
   updateLabel(footerLabel, footer);
 
   if (mode == Mode::Connected) {
-    updateChip(this->leftChip, leftText, CHIP_TEXT, CHIPS_BG);
-    updateChip(this->middleChip, middleText, CHIP_TEXT, CHIPS_ALT);
-    updateChip(this->rightChip, rightText, CHIP_TEXT, accentColor);
+    updateChip(this->leftChip, "AP", CHIP_TEXT, CHIPS_BG);
+    updateChip(this->middleChip, "LAN", CHIP_TEXT, CHIPS_ALT);
+    updateChip(this->rightChip, "READY", CHIP_TEXT, accentColor);
   } else if (mode == Mode::Setup) {
-    updateChip(this->leftChip, leftText, CHIP_TEXT, CHIPS_BG);
-    updateChip(this->middleChip, middleText, CHIP_TEXT, accentColor);
-    updateChip(this->rightChip, rightText, CHIP_TEXT, CHIPS_ALT);
+    updateChip(this->leftChip, "AP", CHIP_TEXT, CHIPS_BG);
+    updateChip(this->middleChip, "SETUP", CHIP_TEXT, accentColor);
+    updateChip(this->rightChip, "WAIT", CHIP_TEXT, CHIPS_ALT);
   } else if (mode == Mode::Error) {
-    updateChip(this->leftChip, leftText, CHIP_TEXT, CHIPS_BG);
-    updateChip(this->middleChip, middleText, CHIP_TEXT, accentColor);
-    updateChip(this->rightChip, rightText, CHIP_TEXT, CHIPS_ALT);
+    updateChip(this->leftChip, "ERR", CHIP_TEXT, CHIPS_BG);
+    updateChip(this->middleChip, "STOP", CHIP_TEXT, accentColor);
+    updateChip(this->rightChip, "ERR", CHIP_TEXT, CHIPS_ALT);
   } else {
-    updateChip(this->leftChip, leftText, CHIP_TEXT, CHIPS_BG);
-    updateChip(this->middleChip, middleText, CHIP_TEXT, CHIPS_ALT);
-    updateChip(this->rightChip, rightText, CHIP_TEXT, CHIPS_SOFT);
+    updateChip(this->leftChip, "BOOT", CHIP_TEXT, CHIPS_BG);
+    updateChip(this->middleChip, "WAIT", CHIP_TEXT, CHIPS_ALT);
+    updateChip(this->rightChip, "M5", CHIP_TEXT, CHIPS_SOFT);
   }
 }
