@@ -5,6 +5,7 @@ const state = {
     supabaseUrl: "",
     supabaseKey: "",
     bridgeId: "m5-atom-s3",
+    bridgeSecret: "",
     bridgeName: "Atom S3 Bridge",
     defaultBroadcast: "",
     defaultPort: 9
@@ -59,6 +60,7 @@ function authHeaders(preferReturn = false) {
   const headers = {
     apikey: state.settings.supabaseKey,
     Authorization: `Bearer ${state.settings.supabaseKey}`,
+    "x-bridge-secret": state.settings.bridgeSecret,
     "Content-Type": "application/json"
   };
   if (preferReturn) {
@@ -71,6 +73,7 @@ async function request(path, options = {}) {
   const base = apiBase();
   if (!base) throw new Error("Supabase URL belum diisi.");
   if (!state.settings.supabaseKey) throw new Error("Supabase anon key belum diisi.");
+  if (!state.settings.bridgeSecret) throw new Error("Bridge secret belum diisi.");
   const url = `${base}/rest/v1${path}`;
   const res = await fetch(url, {
     ...options,
@@ -145,6 +148,11 @@ function renderOverview() {
   const deviceCount = state.devices.length;
   const commandCount = state.commands.length;
   const onlineCount = state.statuses.filter((item) => item.online).length;
+
+  const deviceCountEl = $("device-count");
+  const commandCountEl = $("command-count");
+  if (deviceCountEl) deviceCountEl.textContent = String(deviceCount);
+  if (commandCountEl) commandCountEl.textContent = String(commandCount);
 
   box.innerHTML = `
     <div class="stack">
@@ -289,6 +297,7 @@ async function registerBridge() {
     const payload = {
       id: state.settings.bridgeId,
       name: state.settings.bridgeName,
+      bridge_secret: state.settings.bridgeSecret,
       local_ip: "",
       ap_ip: "",
       wifi_connected: false,
@@ -402,6 +411,7 @@ async function saveSettings(event) {
   state.settings.supabaseUrl = $("supabase-url").value.trim();
   state.settings.supabaseKey = $("supabase-key").value.trim();
   state.settings.bridgeId = $("bridge-id").value.trim();
+  state.settings.bridgeSecret = $("bridge-secret").value.trim();
   state.settings.bridgeName = $("bridge-name").value.trim();
   state.settings.defaultBroadcast = $("default-broadcast").value.trim();
   state.settings.defaultPort = Number($("default-port").value || 9);
@@ -414,6 +424,7 @@ function loadSettingsToForm() {
   $("supabase-url").value = state.settings.supabaseUrl || "";
   $("supabase-key").value = state.settings.supabaseKey || "";
   $("bridge-id").value = state.settings.bridgeId || "";
+  $("bridge-secret").value = state.settings.bridgeSecret || "";
   $("bridge-name").value = state.settings.bridgeName || "";
   $("default-broadcast").value = state.settings.defaultBroadcast || "";
   $("default-port").value = state.settings.defaultPort || 9;
@@ -423,7 +434,7 @@ async function refreshAll() {
   const project = $("project-status");
   const bridge = $("bridge-status");
 
-  if (!state.settings.supabaseUrl || !state.settings.supabaseKey || !state.settings.bridgeId) {
+  if (!state.settings.supabaseUrl || !state.settings.supabaseKey || !state.settings.bridgeId || !state.settings.bridgeSecret) {
     if (project) project.textContent = "Missing settings";
     if (bridge) bridge.textContent = state.settings.bridgeId || "-";
     renderOverview();
@@ -477,6 +488,7 @@ function setupEvents() {
       supabaseUrl: "",
       supabaseKey: "",
       bridgeId: "m5-atom-s3",
+      bridgeSecret: "",
       bridgeName: "Atom S3 Bridge",
       defaultBroadcast: "",
       defaultPort: 9

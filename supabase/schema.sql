@@ -5,6 +5,7 @@ create table if not exists public.wol_bridges (
   name text not null default 'WOL Bridge',
   local_ip inet,
   ap_ip inet,
+  bridge_secret text not null default gen_random_uuid()::text,
   wifi_connected boolean not null default false,
   last_seen_at timestamptz,
   created_at timestamptz not null default now(),
@@ -83,7 +84,155 @@ alter table public.wol_devices enable row level security;
 alter table public.wol_commands enable row level security;
 alter table public.wol_device_status enable row level security;
 
-grant select, insert, update, delete on public.wol_bridges to service_role;
-grant select, insert, update, delete on public.wol_devices to service_role;
-grant select, insert, update, delete on public.wol_commands to service_role;
-grant select, insert, update, delete on public.wol_device_status to service_role;
+alter table if exists public.wol_bridges add column if not exists bridge_secret text;
+update public.wol_bridges
+set bridge_secret = coalesce(bridge_secret, gen_random_uuid()::text)
+where bridge_secret is null;
+alter table public.wol_bridges alter column bridge_secret set default gen_random_uuid()::text;
+alter table public.wol_bridges alter column bridge_secret set not null;
+create unique index if not exists wol_bridges_bridge_secret_idx on public.wol_bridges (bridge_secret);
+
+create or replace function public.request_headers_json()
+returns jsonb
+language sql
+stable
+as $$
+  select coalesce(nullif(current_setting('request.headers', true), '')::jsonb, '{}'::jsonb);
+$$;
+
+create or replace function public.request_bridge_secret()
+returns text
+language sql
+stable
+as $$
+  select coalesce(public.request_headers_json() ->> 'x-bridge-secret', '');
+$$;
+
+drop policy if exists "bridge owners read bridges" on public.wol_bridges;
+drop policy if exists "bridge owners write bridges" on public.wol_bridges;
+drop policy if exists "bridge owners read devices" on public.wol_devices;
+drop policy if exists "bridge owners write devices" on public.wol_devices;
+drop policy if exists "bridge owners read commands" on public.wol_commands;
+drop policy if exists "bridge owners write commands" on public.wol_commands;
+drop policy if exists "bridge owners read statuses" on public.wol_device_status;
+drop policy if exists "bridge owners write statuses" on public.wol_device_status;
+
+create policy "bridge owners read bridges"
+on public.wol_bridges
+for select
+to anon, authenticated, service_role
+using (bridge_secret = public.request_bridge_secret());
+
+create policy "bridge owners write bridges"
+on public.wol_bridges
+for all
+to anon, authenticated, service_role
+using (bridge_secret = public.request_bridge_secret())
+with check (bridge_secret = public.request_bridge_secret());
+
+create policy "bridge owners read devices"
+on public.wol_devices
+for select
+to anon, authenticated, service_role
+using (
+  exists (
+    select 1
+    from public.wol_bridges b
+    where b.id = bridge_id
+      and b.bridge_secret = public.request_bridge_secret()
+  )
+);
+
+create policy "bridge owners write devices"
+on public.wol_devices
+for all
+to anon, authenticated, service_role
+using (
+  exists (
+    select 1
+    from public.wol_bridges b
+    where b.id = bridge_id
+      and b.bridge_secret = public.request_bridge_secret()
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.wol_bridges b
+    where b.id = bridge_id
+      and b.bridge_secret = public.request_bridge_secret()
+  )
+);
+
+create policy "bridge owners read commands"
+on public.wol_commands
+for select
+to anon, authenticated, service_role
+using (
+  exists (
+    select 1
+    from public.wol_bridges b
+    where b.id = bridge_id
+      and b.bridge_secret = public.request_bridge_secret()
+  )
+);
+
+create policy "bridge owners write commands"
+on public.wol_commands
+for all
+to anon, authenticated, service_role
+using (
+  exists (
+    select 1
+    from public.wol_bridges b
+    where b.id = bridge_id
+      and b.bridge_secret = public.request_bridge_secret()
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.wol_bridges b
+    where b.id = bridge_id
+      and b.bridge_secret = public.request_bridge_secret()
+  )
+);
+
+create policy "bridge owners read statuses"
+on public.wol_device_status
+for select
+to anon, authenticated, service_role
+using (
+  exists (
+    select 1
+    from public.wol_bridges b
+    where b.id = bridge_id
+      and b.bridge_secret = public.request_bridge_secret()
+  )
+);
+
+create policy "bridge owners write statuses"
+on public.wol_device_status
+for all
+to anon, authenticated, service_role
+using (
+  exists (
+    select 1
+    from public.wol_bridges b
+    where b.id = bridge_id
+      and b.bridge_secret = public.request_bridge_secret()
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.wol_bridges b
+    where b.id = bridge_id
+      and b.bridge_secret = public.request_bridge_secret()
+  )
+);
+
+grant select, insert, update, delete on public.wol_bridges to anon, authenticated, service_role;
+grant select, insert, update, delete on public.wol_devices to anon, authenticated, service_role;
+grant select, insert, update, delete on public.wol_commands to anon, authenticated, service_role;
+grant select, insert, update, delete on public.wol_device_status to anon, authenticated, service_role;

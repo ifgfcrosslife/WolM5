@@ -59,6 +59,7 @@ Alur deploy yang paling simpel:
 5. Tunggu sampai URL Pages muncul, lalu buka portal dari sana.
 
 Portal frontend memakai `Supabase URL` dan `anon key` dari browser, jadi jangan pernah taruh `service_role key` di halaman publik. Supaya portal bisa membaca dan menulis data, nanti perlu policy Supabase yang sesuai untuk tabel `wol_bridges`, `wol_devices`, `wol_commands`, dan `wol_device_status`.
+Untuk setup yang lebih aman, portal dan M5 sekarang juga memakai `Bridge Secret` yang sama. Secret ini jadi pengunci policy Supabase, jadi pastikan nilainya identik di GitHub Pages dan di halaman setup M5.
 
 Kalau kamu mau, alur berikutnya biasanya:
 
@@ -76,6 +77,7 @@ create table public.wol_bridges (
   name text not null default 'WOL Bridge',
   local_ip inet,
   ap_ip inet,
+  bridge_secret text not null default gen_random_uuid()::text,
   wifi_connected boolean not null default false,
   last_seen_at timestamptz,
   created_at timestamptz not null default now(),

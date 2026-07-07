@@ -99,28 +99,28 @@
               <form id="device-form" class="form-grid">
                 <input type="hidden" id="device-id">
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Name</span>
                   <input id="device-name" type="text" placeholder="PC Kantor">
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>MAC Address</span>
                   <input id="device-mac" type="text" placeholder="AA:BB:CC:DD:EE:FF">
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>IP Address</span>
                   <input id="device-ip" type="text" placeholder="192.168.1.50">
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Broadcast IP</span>
                   <input id="device-broadcast" type="text" placeholder="192.168.1.255">
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Port</span>
                   <input id="device-port" type="number" min="1" value="9">
                 </label>
                 <label class="field field-inline">
                   <input id="device-enabled" type="checkbox" checked>
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Enabled</span>
                 </label>
                 <div class="form-actions">
                   <button class="primary-btn" id="device-save-btn" type="submit">Save Device</button>
@@ -162,19 +162,19 @@
             <div class="card-body">
               <form id="wake-form" class="stack">
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Device</span>
                   <select id="wake-device"></select>
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>MAC</span>
                   <input id="wake-mac" type="text" readonly>
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Broadcast</span>
                   <input id="wake-broadcast" type="text" readonly>
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Port</span>
                   <input id="wake-port" type="number" readonly>
                 </label>
                 <button class="primary-btn" type="submit">Queue WOL</button>
@@ -194,27 +194,31 @@
             <div class="card-body">
               <form id="settings-form" class="form-grid">
                 <label class="field field-wide">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Supabase URL</span>
                   <input id="supabase-url" type="url" placeholder="https://xxxxx.supabase.co">
                 </label>
                 <label class="field field-wide">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Anon Key</span>
                   <input id="supabase-key" type="password" placeholder="eyJhbGciOi...">
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Bridge ID</span>
                   <input id="bridge-id" type="text" placeholder="m5-atom-s3">
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Bridge Secret</span>
+                  <input id="bridge-secret" type="text" placeholder="shared-secret">
+                </label>
+                <label class="field">
+                  <span>Bridge Name</span>
                   <input id="bridge-name" type="text" placeholder="Atom S3 Bridge">
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Default Broadcast</span>
                   <input id="default-broadcast" type="text" placeholder="192.168.1.255">
                 </label>
                 <label class="field">
-                  <span aria-hidden="true">&#8635;</span>
+                  <span>Default Port</span>
                   <input id="default-port" type="number" min="1" value="9">
                 </label>
                 <div class="form-actions">
@@ -232,7 +236,7 @@
             </header>
             <div class="card-body prose">
               <ol>
-                <li>Isi Supabase URL, anon key, dan Bridge ID.</li>
+                <li>Isi Supabase URL, anon key, Bridge ID, dan Bridge Secret.</li>
                 <li>Register bridge supaya row <code>wol_bridges</code> ada.</li>
                 <li>Tambah PC ke <code>wol_devices</code> manual atau nanti dari M5.</li>
                 <li>Queue WOL untuk membuat row di <code>wol_commands</code>.</li>

@@ -51,8 +51,16 @@ void SupabaseClient::configure(const AppConfig &config) {
   secureClient.setInsecure();
 }
 
+void SupabaseClient::setBridgeSecret(const String &bridgeSecret) {
+  cfg.bridgeSecret = bridgeSecret;
+  cfg.bridgeSecret.trim();
+}
+
 bool SupabaseClient::isConfigured() const {
-  return cfg.supabaseUrl.length() > 0 && cfg.supabaseKey.length() > 0 && cfg.bridgeId.length() > 0;
+  return cfg.supabaseUrl.length() > 0 &&
+         cfg.supabaseKey.length() > 0 &&
+         cfg.bridgeId.length() > 0 &&
+         cfg.bridgeSecret.length() > 0;
 }
 
 bool SupabaseClient::fetchNextCommand(WolCommand &command) {
@@ -117,6 +125,7 @@ bool SupabaseClient::upsertBridge(const String &bridgeId, const String &name, co
 
   const String url = restUrl("/wol_bridges?on_conflict=id");
   String body = "{\"id\":\"" + jsonEscape(bridgeId) + "\",\"name\":\"" + jsonEscape(name) +
+                "\",\"bridge_secret\":\"" + jsonEscape(cfg.bridgeSecret) +
                 "\",\"local_ip\":\"" + jsonEscape(localIp) + "\",\"ap_ip\":\"" + jsonEscape(apIp) +
                 "\",\"wifi_connected\":" + String(wifiConnected ? "true" : "false");
   const String timestamp = currentIsoTime();
@@ -227,6 +236,7 @@ void SupabaseClient::addHeaders(HTTPClient &http, bool preferReturnMinimal) {
   http.addHeader("apikey", cfg.supabaseKey);
   http.addHeader("Authorization", "Bearer " + cfg.supabaseKey);
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("x-bridge-secret", cfg.bridgeSecret);
   if (preferReturnMinimal) {
     http.addHeader("Prefer", "return=minimal,resolution=merge-duplicates");
   }

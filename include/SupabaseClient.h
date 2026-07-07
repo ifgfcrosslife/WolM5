@@ -34,6 +34,7 @@ class SupabaseClient {
   bool bridgeExists(const String &bridgeId);
   bool fetchDevices(JsonDocument &doc);
   bool upsertDeviceByMac(const String &bridgeId, const String &name, const String &macAddress, const String &ipAddress, const String &broadcastIp, uint16_t port);
+  void setBridgeSecret(const String &bridgeSecret);
 
  private:
   AppConfig cfg;

@@ -9,6 +9,7 @@ struct AppConfig {
   String supabaseUrl;
   String supabaseKey;
   String bridgeId;
+  String bridgeSecret;
   String apPassword;
   bool wifiHidden = false;
   uint32_t commandPollMs = 5000;

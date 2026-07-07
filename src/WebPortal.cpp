@@ -70,11 +70,14 @@ bool WebPortal::restartRequested() const {
 
 void WebPortal::handleRoot() {
   AppConfig &cfg = *configRef;
+  const bool hasBridgeSecret = cfg.bridgeSecret.length() > 0;
   const bool bridgeRegistered = supabase.bridgeExists(cfg.bridgeId);
   const char *registerLabel = bridgeRegistered ? "Register Ulang" : "Register Device";
   const char *registerHint = bridgeRegistered
                                  ? "Bridge ini sudah terdaftar. Klik Register Ulang untuk menimpa data dengan setting terbaru."
-                                 : "Daftarkan bridge ini ke tabel wol_bridges dari portal M5.";
+                                 : (hasBridgeSecret
+                                        ? "Daftarkan bridge ini ke tabel wol_bridges dari portal M5."
+                                        : "Isi Bridge Secret dulu. Secret ini harus sama dengan portal GitHub Pages.");
   String html;
   html.reserve(22000);
   html += F("<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'>");
@@ -139,6 +142,9 @@ void WebPortal::handleRoot() {
   html += F("<div class='field'><label for='bridgeId'>Bridge ID</label><input id='bridgeId' name='bridgeId' type='text' value='");
   html += htmlEscape(cfg.bridgeId);
   html += F("'></div>");
+  html += F("<div class='field span-2'><label for='bridgeSecret'>Bridge Secret</label><input id='bridgeSecret' name='bridgeSecret' type='text' value='");
+  html += htmlEscape(cfg.bridgeSecret);
+  html += F("'><div class='hint'>Harus sama dengan secret di frontend GitHub Pages. Policy Supabase akan memakai nilai ini.</div></div>");
   html += F("<div class='field'><label for='apPassword'>AP Password</label><input id='apPassword' name='apPassword' type='text' value='");
   html += htmlEscape(cfg.apPassword);
   html += F("'></div>");
@@ -188,6 +194,7 @@ void WebPortal::handleSave() {
   next.supabaseUrl = server.arg("supabaseUrl");
   next.supabaseKey = server.arg("supabaseKey");
   next.bridgeId = server.arg("bridgeId");
+  next.bridgeSecret = server.arg("bridgeSecret");
   next.apPassword = server.arg("apPassword");
   next.wifiHidden = server.hasArg("wifiHidden");
   next.commandPollMs = server.arg("commandPollMs").toInt();
@@ -199,9 +206,11 @@ void WebPortal::handleSave() {
   if (next.pingCount < 1 || next.pingCount > 5) next.pingCount = 2;
   if (next.apPassword.length() < 8) next.apPassword = "wolm5setup";
   if (next.deviceName.isEmpty()) next.deviceName = "wolm5";
+  next.bridgeSecret.trim();
 
   store.save(next);
   *configRef = next;
+  supabase.configure(next);
   shouldRestart = true;
 
   String html;
@@ -323,9 +332,9 @@ void WebPortal::handleSupabaseTest() {
   JsonDocument doc;
   AppConfig &cfg = *configRef;
 
-  if (cfg.supabaseUrl.isEmpty() || cfg.supabaseKey.isEmpty()) {
+  if (cfg.supabaseUrl.isEmpty() || cfg.supabaseKey.isEmpty() || cfg.bridgeSecret.isEmpty()) {
     doc["ok"] = false;
-    doc["message"] = "Supabase URL atau key belum diisi.";
+    doc["message"] = "Supabase URL, key, atau Bridge Secret belum diisi.";
     String body;
     serializeJson(doc, body);
     server.send(200, "application/json", body);
@@ -351,6 +360,7 @@ void WebPortal::handleSupabaseTest() {
 
   http.addHeader("apikey", cfg.supabaseKey);
   http.addHeader("Authorization", "Bearer " + cfg.supabaseKey);
+  http.addHeader("x-bridge-secret", cfg.bridgeSecret);
   const int code = http.GET();
   const String response = http.getString();
   http.end();
@@ -378,7 +388,7 @@ void WebPortal::handleRegisterBridge() {
 
   if (!supabase.isConfigured()) {
     doc["ok"] = false;
-    doc["message"] = "Supabase belum dikonfigurasi penuh. Isi URL, key, dan Bridge ID dulu.";
+    doc["message"] = "Supabase belum dikonfigurasi penuh. Isi URL, key, Bridge ID, dan Bridge Secret dulu.";
     String body;
     serializeJson(doc, body);
     server.send(200, "application/json", body);
