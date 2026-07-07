@@ -24,6 +24,7 @@ NetworkDiscoveryManager discovery;
 
 AppConfig config;
 uint32_t lastCommandPoll = 0;
+uint32_t lastBridgeHeartbeat = 0;
 
 void pollCommands() {
   if (!wifiManager.isStationConnected() || !supabase.isConfigured()) {
@@ -44,6 +45,24 @@ void pollCommands() {
   supabase.markCommand(command.id, "processing", "M5 bridge accepted command");
   const bool sent = wolSender.send(command.macAddress, command.broadcastIp, command.port);
   supabase.markCommand(command.id, sent ? "done" : "failed", sent ? "Magic packet sent" : "Failed to send magic packet");
+}
+
+void maybeHeartbeatBridge() {
+  if (!wifiManager.isStationConnected() || !supabase.isConfigured()) {
+    return;
+  }
+
+  const uint32_t now = millis();
+  if (lastBridgeHeartbeat != 0 && now - lastBridgeHeartbeat < config.bridgeHeartbeatMs) {
+    return;
+  }
+  lastBridgeHeartbeat = now;
+
+  supabase.upsertBridge(config.bridgeId,
+                        config.deviceName,
+                        wifiManager.localIp().toString(),
+                        wifiManager.apIp().toString(),
+                        WiFi.status() == WL_CONNECTED);
 }
 
 void setup() {
@@ -96,6 +115,7 @@ void loop() {
   }
 
   pollCommands();
+  maybeHeartbeatBridge();
   statusMonitor.tick();
   lanDiscovery.tick();
   display.tick();

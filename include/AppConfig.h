@@ -14,6 +14,7 @@ struct AppConfig {
   bool wifiHidden = false;
   uint32_t commandPollMs = 5000;
   uint32_t statusPollMs = 30000;
+  uint32_t bridgeHeartbeatMs = 900000;
   uint8_t pingCount = 2;
 };
 

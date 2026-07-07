@@ -166,6 +166,9 @@ void WebPortal::handleRoot() {
   html += F("<div class='field'><label for='statusPollMs'>Status Poll ms</label><input id='statusPollMs' name='statusPollMs' type='number' min='10000' step='1000' value='");
   html += String(cfg.statusPollMs);
   html += F("'></div>");
+  html += F("<div class='field'><label for='bridgeHeartbeatMs'>Bridge Heartbeat ms</label><input id='bridgeHeartbeatMs' name='bridgeHeartbeatMs' type='number' min='60000' step='1000' value='");
+  html += String(cfg.bridgeHeartbeatMs);
+  html += F("'><div class='hint'>Update last_seen_at ke Supabase hanya sesekali supaya hemat, misalnya 10-15 menit.</div></div>");
   html += F("<div class='field span-2'><label for='pingCount'>Ping Count</label><input id='pingCount' name='pingCount' type='number' min='1' max='5' value='");
   html += String(cfg.pingCount);
   html += F("'><div class='hint'>Angka kecil cukup untuk status ringan; kita menjaga jaringan tetap santai.</div></div>");
@@ -199,10 +202,12 @@ void WebPortal::handleSave() {
   next.wifiHidden = server.hasArg("wifiHidden");
   next.commandPollMs = server.arg("commandPollMs").toInt();
   next.statusPollMs = server.arg("statusPollMs").toInt();
+  next.bridgeHeartbeatMs = server.arg("bridgeHeartbeatMs").toInt();
   next.pingCount = static_cast<uint8_t>(server.arg("pingCount").toInt());
 
   if (next.commandPollMs < 1000) next.commandPollMs = 5000;
   if (next.statusPollMs < 10000) next.statusPollMs = 30000;
+  if (next.bridgeHeartbeatMs < 60000) next.bridgeHeartbeatMs = 900000;
   if (next.pingCount < 1 || next.pingCount > 5) next.pingCount = 2;
   if (next.apPassword.length() < 8) next.apPassword = "wolm5setup";
   if (next.deviceName.isEmpty()) next.deviceName = "wolm5";

@@ -23,6 +23,7 @@ AppConfig ConfigStore::load() {
   config.wifiHidden = prefs.getBool("wifiHidden", false);
   config.commandPollMs = prefs.getUInt("cmdPoll", 5000);
   config.statusPollMs = prefs.getUInt("statusPoll", 30000);
+  config.bridgeHeartbeatMs = prefs.getUInt("bridgeHeartbeat", 900000);
   config.pingCount = prefs.getUChar("pingCount", 2);
   return config;
 }
@@ -40,6 +41,7 @@ bool ConfigStore::save(const AppConfig &config) {
   ok &= prefs.putBool("wifiHidden", config.wifiHidden);
   ok &= prefs.putUInt("cmdPoll", config.commandPollMs) > 0;
   ok &= prefs.putUInt("statusPoll", config.statusPollMs) > 0;
+  ok &= prefs.putUInt("bridgeHeartbeat", config.bridgeHeartbeatMs) > 0;
   ok &= prefs.putUChar("pingCount", config.pingCount) > 0;
   return ok;
 }
