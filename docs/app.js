@@ -669,8 +669,6 @@ async function saveSettings(event) {
       defaultPort: Number(data.defaultPort || data.default_port || nextSettings.defaultPort || 9)
     };
     persistSettings();
-    setTab("dashboard");
-    writeSettingsToUrl("dashboard");
     setStatus("Settings tersimpan ke Supabase.", "ok");
     loadSettingsToForm();
     await refreshAll();
