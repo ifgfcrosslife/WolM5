@@ -6,7 +6,7 @@ Project ini menjadikan M5 Atom S3 sebagai bridge Wake-on-LAN lokal. Frontend Git
 
 1. M5 membuat AP setup `WOLM5-xxxxxx`.
 2. User buka web config M5 dari AP atau IP lokal.
-3. User isi WiFi lokal, Supabase URL, Supabase API key, dan `bridge_id`.
+3. User isi WiFi lokal, centang `Hidden SSID` kalau jaringan disembunyikan, lalu isi Supabase URL, Supabase API key, dan `bridge_id`.
 4. M5 connect ke WiFi lokal.
 5. M5 polling tabel `wol_commands` di Supabase.
 6. Saat ada command `pending`, M5 mengirim magic packet ke PC lokal.
@@ -33,6 +33,10 @@ pio device monitor
 ```
 
 Board di `platformio.ini` memakai `m5stack-atoms3`. Jika PlatformIO lokal belum mengenali board ini, update platform Espressif 32 atau ganti sementara ke board ESP32-S3 yang cocok dengan Atom S3.
+
+AtomS3 punya layar 0.85" IPS/LCD bawaan, jadi firmware sekarang juga menyalakan layar untuk status boot, koneksi WiFi, mode setup, dan bridge siap.
+
+Kalau `deviceName` diisi `wolm5`, kamu bisa buka `http://wolm5.local` di perangkat yang satu jaringan. Di Windows, nama NetBIOS juga akan aktif dengan nama itu.
 
 Setup pertama:
 

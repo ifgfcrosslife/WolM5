@@ -21,4 +21,6 @@ class WebPortal {
   void handleSave();
   void handleReset();
   void handleStatus();
+  void handleFavicon();
+  void handleNotFound();
 };

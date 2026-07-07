@@ -4,6 +4,8 @@
 #include "AppConfig.h"
 #include "ConfigStore.h"
 #include "StatusMonitor.h"
+#include "DisplayManager.h"
+#include "NetworkDiscoveryManager.h"
 #include "SupabaseClient.h"
 #include "WebPortal.h"
 #include "WifiManager.h"
@@ -15,6 +17,8 @@ SupabaseClient supabase;
 StatusMonitor statusMonitor(supabase);
 WolSender wolSender;
 WebPortal webPortal(configStore);
+DisplayManager display;
+NetworkDiscoveryManager discovery;
 
 AppConfig config;
 uint32_t lastCommandPoll = 0;
@@ -46,19 +50,22 @@ void setup() {
   Serial.println();
   Serial.println("WOL M5 Atom S3 starting");
 
+  display.begin();
   configStore.begin();
   config = configStore.load();
+  display.showBoot(config);
 
   wifiManager.beginAccessPoint(config);
   webPortal.begin(config);
 
   if (wifiManager.connectStation(config, 15000)) {
-    Serial.print("WiFi connected: ");
-    Serial.println(wifiManager.localIp());
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+    discovery.begin(config.deviceName, 80);
+    display.showConnected(wifiManager.localIp(), wifiManager.apIp());
   } else {
     Serial.print("Setup AP active: ");
     Serial.println(wifiManager.apIp());
+    display.showSetupMode(wifiManager.apIp());
   }
 
   supabase.configure(config);
@@ -74,10 +81,18 @@ void loop() {
   }
 
   if (WiFi.status() != WL_CONNECTED && config.wifiSsid.length() > 0) {
-    wifiManager.connectStation(config, 3000);
+    display.showConnecting(config.wifiSsid, config.wifiHidden);
+    if (wifiManager.connectStation(config, 3000)) {
+      discovery.begin(config.deviceName, 80);
+      display.showConnected(wifiManager.localIp(), wifiManager.apIp());
+    } else {
+      discovery.end();
+      display.showSetupMode(wifiManager.apIp());
+    }
   }
 
   pollCommands();
   statusMonitor.tick();
+  display.tick();
   delay(10);
 }
