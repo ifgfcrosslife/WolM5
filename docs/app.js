@@ -15,6 +15,15 @@ const state = {
 };
 
 const $ = (id) => document.getElementById(id);
+const jstFormatter = new Intl.DateTimeFormat("ja-JP", {
+  timeZone: "Asia/Tokyo",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit"
+});
 
 function readSettingsFromUrl() {
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -32,7 +41,7 @@ function readSettingsFromUrl() {
   };
 }
 
-function writeSettingsToUrl() {
+function writeSettingsToUrl(activeTab = "dashboard") {
   const params = new URLSearchParams();
   params.set("supabaseUrl", state.settings.supabaseUrl || "");
   params.set("supabaseKey", state.settings.supabaseKey || "");
@@ -41,7 +50,6 @@ function writeSettingsToUrl() {
   params.set("bridgeName", state.settings.bridgeName || "");
   params.set("defaultBroadcast", state.settings.defaultBroadcast || "");
   params.set("defaultPort", String(state.settings.defaultPort || 9));
-  const activeTab = document.querySelector(".tab-btn.active")?.dataset.tab || "dashboard";
   params.set("tab", activeTab);
   history.replaceState(null, "", `${window.location.pathname}#${params.toString()}`);
 }
@@ -182,7 +190,7 @@ function renderOverview() {
       <div class="chip">Bridge ID: ${escapeHtml(state.settings.bridgeId || "-")}</div>
       <div class="notice">
         <strong>${escapeHtml(bridge ? bridge.name || bridge.id : "Bridge belum terhubung")}</strong><br>
-        <span class="muted-text">${escapeHtml(bridge ? `Last seen ${bridge.last_seen_at || "-"}` : "M5 bridge akan muncul di sini setelah tersambung ke Supabase.")}</span>
+        <span class="muted-text">${escapeHtml(bridge ? `Last seen ${formatTimestamp(bridge.last_seen_at)}` : "M5 bridge akan muncul di sini setelah tersambung ke Supabase.")}</span>
       </div>
       <div class="status-strip" style="grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 0;">
         <div class="status-card"><span class="label">Devices</span><strong>${deviceCount}</strong></div>
@@ -206,7 +214,10 @@ function renderTable(containerId, rows, columns, emptyText = "Belum ada data.") 
     const cells = columns.map((column) => {
       if (column.render) return `<td>${column.render(row, index)}</td>`;
       const value = row[column.key];
-      return `<td>${escapeHtml(value ?? "")}</td>`;
+      const formatted = typeof column.key === "string" && column.key.endsWith("_at")
+        ? formatTimestamp(value)
+        : (value ?? "");
+      return `<td>${escapeHtml(formatted)}</td>`;
     }).join("");
     return `<tr>${cells}</tr>`;
   }).join("");
@@ -297,6 +308,13 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function formatTimestamp(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return jstFormatter.format(date);
 }
 
 async function registerBridge() {
@@ -423,7 +441,8 @@ async function saveSettings(event) {
   state.settings.bridgeName = $("bridge-name").value.trim();
   state.settings.defaultBroadcast = $("default-broadcast").value.trim();
   state.settings.defaultPort = Number($("default-port").value || 9);
-  writeSettingsToUrl();
+  setTab("dashboard");
+  writeSettingsToUrl("dashboard");
   setStatus("Share link updated.", "ok");
   await refreshAll();
 }
@@ -503,7 +522,7 @@ function setupEvents() {
     refreshAll();
   });
   $("copy-link-btn").addEventListener("click", async () => {
-    writeSettingsToUrl();
+    writeSettingsToUrl("dashboard");
     try {
       await navigator.clipboard.writeText(window.location.href);
       setStatus("Share link copied.", "ok");

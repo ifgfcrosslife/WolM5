@@ -25,6 +25,27 @@ NetworkDiscoveryManager discovery;
 AppConfig config;
 uint32_t lastCommandPoll = 0;
 uint32_t lastBridgeHeartbeat = 0;
+bool clockSynced = false;
+
+bool syncClock(uint32_t timeoutMs = 10000) {
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov", "time.google.com");
+
+  struct tm timeInfo;
+  const uint32_t started = millis();
+  while (millis() - started < timeoutMs) {
+    if (getLocalTime(&timeInfo, 250)) {
+      char buffer[40];
+      strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S UTC", &timeInfo);
+      Serial.print("NTP synced: ");
+      Serial.println(buffer);
+      return true;
+    }
+    delay(100);
+  }
+
+  Serial.println("NTP sync timeout; continuing with system clock");
+  return false;
+}
 
 void pollCommands() {
   if (!wifiManager.isStationConnected() || !supabase.isConfigured()) {
@@ -60,8 +81,8 @@ void maybeHeartbeatBridge() {
 
   supabase.upsertBridge(config.bridgeId,
                         config.deviceName,
-                        wifiManager.localIp().toString(),
-                        wifiManager.apIp().toString(),
+                        wifiManager.localIp(),
+                        wifiManager.apIp(),
                         WiFi.status() == WL_CONNECTED);
 }
 
@@ -81,7 +102,7 @@ void setup() {
   webPortal.begin(config);
 
   if (wifiManager.connectStation(config, 15000)) {
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+    clockSynced = syncClock();
     discovery.begin(config.deviceName, 80);
     display.showConnected(wifiManager.localIp(), wifiManager.apIp());
   } else {
@@ -106,6 +127,9 @@ void loop() {
   if (WiFi.status() != WL_CONNECTED && config.wifiSsid.length() > 0) {
     display.showConnecting(config.wifiSsid, config.wifiHidden);
     if (wifiManager.connectStation(config, 3000)) {
+      if (!clockSynced) {
+        clockSynced = syncClock(5000);
+      }
       discovery.begin(config.deviceName, 80);
       display.showConnected(wifiManager.localIp(), wifiManager.apIp());
     } else {
