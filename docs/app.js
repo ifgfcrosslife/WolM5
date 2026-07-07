@@ -611,18 +611,72 @@ async function sendWake(deviceId) {
 
 async function saveSettings(event) {
   if (event) event.preventDefault();
-  state.settings.supabaseUrl = $("supabase-url").value.trim();
-  state.settings.supabaseKey = $("supabase-key").value.trim();
-  state.settings.bridgeId = $("bridge-id").value.trim();
-  state.settings.bridgeSecret = $("bridge-secret").value.trim();
-  state.settings.bridgeName = $("bridge-name").value.trim();
-  state.settings.defaultBroadcast = $("default-broadcast").value.trim();
-  state.settings.defaultPort = Number($("default-port").value || 9);
-  persistSettings();
-  setTab("dashboard");
-  writeSettingsToUrl("dashboard");
-  setStatus("Share link updated.", "ok");
-  await refreshAll();
+  const currentSupabaseUrl = state.settings.supabaseUrl;
+  const currentSupabaseKey = state.settings.supabaseKey;
+  const currentBridgeSecret = state.settings.bridgeSecret;
+  const nextSettings = {
+    supabaseUrl: $("supabase-url").value.trim(),
+    supabaseKey: $("supabase-key").value.trim(),
+    bridgeId: $("bridge-id").value.trim(),
+    bridgeSecret: $("bridge-secret").value.trim(),
+    bridgeName: $("bridge-name").value.trim(),
+    defaultBroadcast: $("default-broadcast").value.trim(),
+    defaultPort: Number($("default-port").value || 9)
+  };
+
+  if (!currentSupabaseUrl || !currentSupabaseKey || !currentBridgeSecret) {
+    setStatus("Load config dari Supabase dulu sebelum menyimpan.", "fail");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${normalizeUrl(currentSupabaseUrl)}/rest/v1/rpc/save_portal_config`, {
+      method: "POST",
+      headers: {
+        apikey: currentSupabaseKey,
+        Authorization: `Bearer ${currentSupabaseKey}`,
+        "x-bridge-secret": currentBridgeSecret,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        p_supabase_url: nextSettings.supabaseUrl,
+        p_supabase_key: nextSettings.supabaseKey,
+        p_bridge_id: nextSettings.bridgeId,
+        p_bridge_secret: nextSettings.bridgeSecret,
+        p_bridge_name: nextSettings.bridgeName,
+        p_default_broadcast: nextSettings.defaultBroadcast,
+        p_default_port: nextSettings.defaultPort
+      })
+    });
+    const text = await res.text();
+    let data = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch (_) {
+      data = text;
+    }
+    if (!res.ok) {
+      throw new Error((data && data.message) || data || `HTTP ${res.status}`);
+    }
+
+    state.settings = {
+      supabaseUrl: data.supabaseUrl || data.supabase_url || nextSettings.supabaseUrl,
+      supabaseKey: data.supabaseKey || data.supabase_key || nextSettings.supabaseKey,
+      bridgeId: data.bridgeId || data.bridge_id || nextSettings.bridgeId,
+      bridgeSecret: data.bridgeSecret || data.bridge_secret || nextSettings.bridgeSecret,
+      bridgeName: data.bridgeName || data.bridge_name || nextSettings.bridgeName,
+      defaultBroadcast: data.defaultBroadcast || data.default_broadcast || nextSettings.defaultBroadcast,
+      defaultPort: Number(data.defaultPort || data.default_port || nextSettings.defaultPort || 9)
+    };
+    persistSettings();
+    setTab("dashboard");
+    writeSettingsToUrl("dashboard");
+    setStatus("Settings tersimpan ke Supabase.", "ok");
+    loadSettingsToForm();
+    await refreshAll();
+  } catch (error) {
+    setStatus(error.message || "Failed to save settings.", "fail");
+  }
 }
 
 function loadSettingsToForm() {

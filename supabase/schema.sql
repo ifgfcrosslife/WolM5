@@ -255,12 +255,13 @@ alter table if exists public.wol_portal_config enable row level security;
 
 drop policy if exists "portal config deny select" on public.wol_portal_config;
 drop function if exists public.portal_login(text);
+drop function if exists public.save_portal_config(text, text, text, text, text, text, integer);
 
 create function public.portal_login(password text)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   cfg public.wol_portal_config%rowtype;
@@ -269,10 +270,14 @@ begin
   into cfg
   from public.wol_portal_config
   where id = 'default'
-    and portal_password_hash = crypt(password, portal_password_hash)
   limit 1;
 
   if not found then
+    raise exception 'Portal config default belum diisi' using errcode = 'P0002';
+  end if;
+
+  if cfg.portal_password_hash is null
+     or cfg.portal_password_hash <> extensions.crypt(password, cfg.portal_password_hash) then
     raise exception 'Invalid portal password' using errcode = '28P01';
   end if;
 
@@ -290,3 +295,58 @@ $$;
 
 revoke all on function public.portal_login(text) from public;
 grant execute on function public.portal_login(text) to anon, authenticated, service_role;
+
+create function public.save_portal_config(
+  p_supabase_url text,
+  p_supabase_key text,
+  p_bridge_id text,
+  p_bridge_secret text,
+  p_bridge_name text,
+  p_default_broadcast text,
+  p_default_port integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  cfg public.wol_portal_config%rowtype;
+  caller_secret text := public.request_bridge_secret();
+begin
+  if caller_secret = '' then
+    raise exception 'Missing bridge secret' using errcode = '28000';
+  end if;
+
+  update public.wol_portal_config
+  set
+    supabase_url = p_supabase_url,
+    supabase_key = p_supabase_key,
+    bridge_id = p_bridge_id,
+    bridge_secret = p_bridge_secret,
+    bridge_name = p_bridge_name,
+    default_broadcast = nullif(p_default_broadcast, ''),
+    default_port = coalesce(p_default_port, 9),
+    updated_at = now()
+  where id = 'default'
+    and bridge_secret = caller_secret
+  returning * into cfg;
+
+  if not found then
+    raise exception 'Portal config not found or bridge secret mismatch' using errcode = '28P01';
+  end if;
+
+  return jsonb_build_object(
+    'supabaseUrl', cfg.supabase_url,
+    'supabaseKey', cfg.supabase_key,
+    'bridgeId', cfg.bridge_id,
+    'bridgeSecret', cfg.bridge_secret,
+    'bridgeName', cfg.bridge_name,
+    'defaultBroadcast', coalesce(cfg.default_broadcast, ''),
+    'defaultPort', cfg.default_port
+  );
+end;
+$$;
+
+revoke all on function public.save_portal_config(text, text, text, text, text, text, integer) from public;
+grant execute on function public.save_portal_config(text, text, text, text, text, text, integer) to anon, authenticated, service_role;

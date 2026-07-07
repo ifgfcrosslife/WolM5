@@ -61,6 +61,7 @@ Alur deploy yang paling simpel:
 Frontend GitHub Pages sekarang memakai login password-only. Password itu dipakai untuk membuka config Supabase dari `docs/config.json` atau dari bootstrap lama, lalu app mengambil `Supabase URL`, `anon key`, dan `Bridge Secret` dari database lewat RPC `portal_login`.
 Jangan pernah taruh `service_role key` di halaman publik. Untuk setup yang lebih aman, portal dan M5 tetap memakai `Bridge Secret` yang sama, dan policy Supabase mengunci akses berdasarkan secret itu.
 `docs/config.json` hanya untuk bootstrap masuk ke database. Isi file itu dengan `Supabase URL` dan `anon key` publik, lalu password digunakan untuk membuka config yang lebih lengkap dari Supabase.
+Kalau mau isi row awal `wol_portal_config` dengan cepat, pakai [supabase/portal_bootstrap.sql](C:\Users\even\Documents\WOLM5\supabase\portal_bootstrap.sql) di SQL Editor Supabase.
 Di firmware M5 ada `Bridge Heartbeat ms` supaya `last_seen_at` di Supabase cuma di-update sesekali. Default-nya 15 menit, jadi polling WOL tetap cepat sementara penulisan timestamp tetap hemat.
 
 Kalau kamu mau, alur berikutnya biasanya:
