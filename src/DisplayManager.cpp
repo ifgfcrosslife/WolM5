@@ -122,7 +122,7 @@ void DisplayManager::showConnecting(const String &ssid, bool hidden) {
 }
 
 void DisplayManager::showConnected(const String &localIp, const String &apIp) {
-  renderScreen(Mode::Connected, "ONLINE", "Connected", "LAN " + localIp, "AP " + apIp,
+  renderScreen(Mode::Connected, "ONLINE", "LAN " + localIp, "Connected", "AP " + apIp,
                "AP", "LAN", "READY", GREEN_565);
 }
 
@@ -315,7 +315,7 @@ void DisplayManager::renderScreen(Mode mode, const String &title, const String &
   lv_obj_set_style_bg_color(accentStrip, colorFrom565(accentColor), 0);
 
   if (mode == Mode::Connected) {
-    updateLabel(stateLabel, LV_SYMBOL_OK);
+    updateLabel(stateLabel, message);
   } else if (mode == Mode::Setup) {
     updateLabel(stateLabel, LV_SYMBOL_WIFI);
   } else if (mode == Mode::Connecting) {
