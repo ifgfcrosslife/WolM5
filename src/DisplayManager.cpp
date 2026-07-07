@@ -156,7 +156,7 @@ void DisplayManager::sleep() {
 }
 
 void DisplayManager::wake() {
-  if (screenOn) {
+  if (screenOn && !dimmed) {
     const uint32_t now = millis();
     dimAtMs = now + dimTimeoutMs;
     sleepAtMs = now + sleepTimeoutMs;
