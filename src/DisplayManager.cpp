@@ -180,11 +180,17 @@ void DisplayManager::handleInput() {
 
   const bool togglePressed = M5.BtnA.wasClicked();
   if (togglePressed) {
-    if (screenOn && !dimmed) {
+    if (!screenOn) {
+      wake();
+      return;
+    }
+
+    if (screenOn && dimmed) {
       sleep();
       return;
     }
-    wake();
+
+    sleep();
     return;
   }
 
