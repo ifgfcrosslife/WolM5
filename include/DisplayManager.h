@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <lvgl.h>
 #include "AppConfig.h"
 
 class DisplayManager {
@@ -22,6 +23,11 @@ class DisplayManager {
     Error,
   };
 
+  struct ChipUi {
+    lv_obj_t *container = nullptr;
+    lv_obj_t *label = nullptr;
+  };
+
   Mode currentMode = Mode::Boot;
   String currentTitle;
   String currentMessage;
@@ -32,6 +38,18 @@ class DisplayManager {
   String currentRightChip;
   uint16_t currentAccent = 0;
   bool dirty = true;
+  bool uiReady = false;
+  uint32_t lastTickMs = 0;
+
+  lv_obj_t *screen = nullptr;
+  lv_obj_t *titlePill = nullptr;
+  lv_obj_t *stateLabel = nullptr;
+  lv_obj_t *detailLabel = nullptr;
+  lv_obj_t *footerLabel = nullptr;
+  lv_obj_t *accentStrip = nullptr;
+  ChipUi leftChip;
+  ChipUi middleChip;
+  ChipUi rightChip;
 
   void renderScreen(Mode mode, const String &title, const String &message, const String &detail,
                     const String &footer, const String &leftChip, const String &middleChip,
@@ -39,5 +57,7 @@ class DisplayManager {
   bool sameState(Mode mode, const String &title, const String &message, const String &detail,
                  const String &footer, const String &leftChip, const String &middleChip,
                  const String &rightChip, uint16_t accentColor) const;
-  void drawChip(int16_t x, int16_t y, int16_t w, const String &text, uint16_t fg, uint16_t bg);
+  void initUi();
+  void updateChip(ChipUi &chip, const String &text, uint16_t fg, uint16_t bg);
+  void updateLabel(lv_obj_t *label, const String &text);
 };

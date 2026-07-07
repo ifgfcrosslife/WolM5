@@ -1,70 +1,95 @@
 #include "DisplayManager.h"
+
 #include <M5Unified.h>
 
 namespace {
-constexpr uint16_t BG = 0x0000;
-constexpr uint16_t CARD = 0x1115;
-constexpr uint16_t CARD_EDGE = 0x2A2F;
-constexpr uint16_t WHITE_565 = 0xFFFF;
-constexpr uint16_t TEXT = 0xF7DE;
-constexpr uint16_t MUTED = 0xBDF7;
+constexpr uint16_t BG = 0x0610;
+constexpr uint16_t PANEL = 0x0E16;
+constexpr uint16_t PANEL_EDGE = 0x2432;
+constexpr uint16_t TEXT = 0xF3F6;
+constexpr uint16_t MUTED = 0xAAB7;
+constexpr uint16_t CHIP_TEXT = 0xF8FA;
+constexpr uint16_t CHIPS_BG = 0x111A;
+constexpr uint16_t CHIPS_ALT = 0x1827;
+constexpr uint16_t CHIPS_SOFT = 0x1E2B;
 constexpr uint16_t GREEN_565 = 0x07E0;
 constexpr uint16_t AMBER_565 = 0xFD20;
 constexpr uint16_t RED_565 = 0xF800;
-constexpr uint16_t CHIP_BG = 0x1B20;
-constexpr uint16_t CHIP_SOFT = 0x3A40;
 
-String fitText(const String &text, int32_t maxWidth, const lgfx::IFont *font) {
-  if (text.isEmpty()) {
-    return text;
-  }
+constexpr int SCREEN_W = 128;
+constexpr int SCREEN_H = 128;
+constexpr int DRAW_BUF_HEIGHT = 16;
 
-  if (M5.Display.textWidth(text.c_str(), font) <= maxWidth) {
-    return text;
-  }
+lv_disp_draw_buf_t drawBuf;
+lv_color_t drawBuf1[SCREEN_W * DRAW_BUF_HEIGHT];
+lv_color_t drawBuf2[SCREEN_W * DRAW_BUF_HEIGHT];
+lv_disp_drv_t dispDrv;
+bool lvglReady = false;
 
-  String cut = text;
-  const String ellipsis = "...";
-  while (cut.length() > 0) {
-    cut.remove(cut.length() - 1);
-    String candidate = cut + ellipsis;
-    if (M5.Display.textWidth(candidate.c_str(), font) <= maxWidth) {
-      return candidate;
-    }
-  }
-
-  return ellipsis;
+lv_color_t colorFrom565(uint16_t color) {
+  return lv_color_hex(color);
 }
+
+String labelText(const String &text) {
+  return text.isEmpty() ? String(" ") : text;
 }
+
+void flushCb(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color_p) {
+  const int32_t width = area->x2 - area->x1 + 1;
+  const int32_t height = area->y2 - area->y1 + 1;
+
+  M5.Display.startWrite();
+  M5.Display.pushImage(area->x1, area->y1, width, height,
+                       reinterpret_cast<const lgfx::rgb565_t *>(color_p));
+  M5.Display.endWrite();
+
+  lv_disp_flush_ready(disp);
+}
+}  // namespace
 
 void DisplayManager::begin() {
   auto cfg = M5.config();
   cfg.output_power = true;
   M5.begin(cfg);
   M5.Display.setRotation(0);
-  M5.Display.setBrightness(170);
+  M5.Display.setBrightness(190);
   M5.Display.fillScreen(BG);
+
+  if (!lvglReady) {
+    lv_init();
+    lv_disp_draw_buf_init(&drawBuf, drawBuf1, drawBuf2, SCREEN_W * DRAW_BUF_HEIGHT);
+    lv_disp_drv_init(&dispDrv);
+    dispDrv.hor_res = SCREEN_W;
+    dispDrv.ver_res = SCREEN_H;
+    dispDrv.flush_cb = flushCb;
+    dispDrv.draw_buf = &drawBuf;
+    lv_disp_drv_register(&dispDrv);
+    lvglReady = true;
+  }
+
+  initUi();
   dirty = true;
+  lastTickMs = millis();
 }
 
 void DisplayManager::showBoot(const AppConfig &) {
-  renderScreen(Mode::Boot, "WOL M5", "Starting", "Preparing bridge", "WiFi / AP / Supabase",
+  renderScreen(Mode::Boot, "BOOT", "Starting", "Preparing bridge", "WiFi / AP / Supabase",
                "BOOT", "WAIT", "M5", AMBER_565);
 }
 
 void DisplayManager::showConnecting(const String &ssid, bool hidden) {
   const String detail = hidden ? "Hidden SSID enabled" : "Broadcast SSID";
-  renderScreen(Mode::Connecting, "CONNECTING", "Router", ssid, detail,
+  renderScreen(Mode::Connecting, "CONNECT", "Router", ssid, detail,
                "WIFI", "SCAN", "TRY", AMBER_565);
 }
 
 void DisplayManager::showConnected(const String &localIp, const String &apIp) {
-  renderScreen(Mode::Connected, "ONLINE", "Bridge ready", "LAN " + localIp, "AP " + apIp,
+  renderScreen(Mode::Connected, "ONLINE", "Ready", "LAN " + localIp, "AP " + apIp,
                "AP", "LAN", "READY", GREEN_565);
 }
 
 void DisplayManager::showSetupMode(const String &apIp) {
-  renderScreen(Mode::Setup, "SETUP MODE", "No router link", "Connect via WOLM5 AP", "AP " + apIp,
+  renderScreen(Mode::Setup, "SETUP", "No router link", "Connect via WOLM5 AP", "AP " + apIp,
                "AP", "SETUP", "WAIT", AMBER_565);
 }
 
@@ -74,9 +99,24 @@ void DisplayManager::showError(const String &message) {
 }
 
 void DisplayManager::tick() {
+  if (!lvglReady) {
+    return;
+  }
+
+  const uint32_t now = millis();
+  if (lastTickMs == 0) {
+    lastTickMs = now;
+  } else if (now > lastTickMs) {
+    lv_tick_inc(now - lastTickMs);
+    lastTickMs = now;
+  }
+
+  lv_timer_handler();
+
   if (!dirty) {
     return;
   }
+
   renderScreen(currentMode, currentTitle, currentMessage, currentDetail, currentFooter,
                currentLeftChip, currentMiddleChip, currentRightChip, currentAccent);
   dirty = false;
@@ -90,10 +130,131 @@ bool DisplayManager::sameState(Mode mode, const String &title, const String &mes
          currentMiddleChip == middleChip && currentRightChip == rightChip && currentAccent == accentColor;
 }
 
+void DisplayManager::initUi() {
+  screen = lv_scr_act();
+  lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_bg_color(screen, colorFrom565(BG), 0);
+  lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+
+  titlePill = lv_obj_create(screen);
+  lv_obj_set_size(titlePill, 112, 18);
+  lv_obj_align(titlePill, LV_ALIGN_TOP_MID, 0, 6);
+  lv_obj_clear_flag(titlePill, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_radius(titlePill, 9, 0);
+  lv_obj_set_style_bg_color(titlePill, colorFrom565(PANEL), 0);
+  lv_obj_set_style_border_color(titlePill, colorFrom565(PANEL_EDGE), 0);
+  lv_obj_set_style_border_width(titlePill, 1, 0);
+  lv_obj_set_style_pad_all(titlePill, 0, 0);
+  lv_obj_set_style_shadow_width(titlePill, 0, 0);
+
+  lv_obj_t *titleLabel = lv_label_create(titlePill);
+  lv_label_set_text(titleLabel, "WOL M5 ATOM S3");
+  lv_label_set_long_mode(titleLabel, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(titleLabel, 104);
+  lv_obj_center(titleLabel);
+  lv_obj_set_style_text_color(titleLabel, colorFrom565(MUTED), 0);
+  lv_obj_set_style_text_font(titleLabel, &lv_font_montserrat_12, 0);
+
+  lv_obj_t *card = lv_obj_create(screen);
+  lv_obj_set_size(card, 112, 66);
+  lv_obj_align(card, LV_ALIGN_TOP_MID, 0, 28);
+  lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_radius(card, 16, 0);
+  lv_obj_set_style_bg_color(card, colorFrom565(PANEL), 0);
+  lv_obj_set_style_border_color(card, colorFrom565(PANEL_EDGE), 0);
+  lv_obj_set_style_border_width(card, 1, 0);
+  lv_obj_set_style_shadow_width(card, 0, 0);
+  lv_obj_set_style_pad_all(card, 0, 0);
+
+  accentStrip = lv_obj_create(card);
+  lv_obj_set_size(accentStrip, 100, 3);
+  lv_obj_align(accentStrip, LV_ALIGN_TOP_MID, 0, 4);
+  lv_obj_clear_flag(accentStrip, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_set_style_radius(accentStrip, 2, 0);
+  lv_obj_set_style_border_width(accentStrip, 0, 0);
+  lv_obj_set_style_bg_color(accentStrip, colorFrom565(AMBER_565), 0);
+
+  stateLabel = lv_label_create(card);
+  lv_label_set_long_mode(stateLabel, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(stateLabel, 96);
+  lv_obj_align(stateLabel, LV_ALIGN_TOP_MID, 0, 18);
+  lv_obj_set_style_text_color(stateLabel, colorFrom565(TEXT), 0);
+  lv_obj_set_style_text_font(stateLabel, &lv_font_montserrat_24, 0);
+  lv_obj_set_style_text_align(stateLabel, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_text(stateLabel, "BOOTING");
+
+  detailLabel = lv_label_create(card);
+  lv_label_set_long_mode(detailLabel, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(detailLabel, 96);
+  lv_obj_align(detailLabel, LV_ALIGN_TOP_MID, 0, 46);
+  lv_obj_set_style_text_color(detailLabel, colorFrom565(MUTED), 0);
+  lv_obj_set_style_text_font(detailLabel, &lv_font_montserrat_12, 0);
+  lv_obj_set_style_text_align(detailLabel, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_text(detailLabel, "Preparing bridge");
+
+  footerLabel = lv_label_create(screen);
+  lv_label_set_long_mode(footerLabel, LV_LABEL_LONG_DOT);
+  lv_obj_set_width(footerLabel, 104);
+  lv_obj_align(footerLabel, LV_ALIGN_TOP_MID, 0, 96);
+  lv_obj_set_style_text_color(footerLabel, colorFrom565(MUTED), 0);
+  lv_obj_set_style_text_font(footerLabel, &lv_font_montserrat_12, 0);
+  lv_obj_set_style_text_align(footerLabel, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_text(footerLabel, "WiFi / AP / Supabase");
+
+  auto createChip = [](lv_obj_t *parent, int16_t x, int16_t y, int16_t w) -> ChipUi {
+    ChipUi chip;
+    chip.container = lv_obj_create(parent);
+    lv_obj_set_size(chip.container, w, 18);
+    lv_obj_align(chip.container, LV_ALIGN_TOP_LEFT, x, y);
+    lv_obj_clear_flag(chip.container, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_radius(chip.container, 9, 0);
+    lv_obj_set_style_border_width(chip.container, 0, 0);
+    lv_obj_set_style_pad_all(chip.container, 0, 0);
+    lv_obj_set_style_shadow_width(chip.container, 0, 0);
+    chip.label = lv_label_create(chip.container);
+    lv_label_set_long_mode(chip.label, LV_LABEL_LONG_DOT);
+    lv_obj_set_width(chip.label, w - 10);
+    lv_obj_center(chip.label);
+    lv_obj_set_style_text_font(chip.label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_align(chip.label, LV_TEXT_ALIGN_CENTER, 0);
+    return chip;
+  };
+
+  leftChip = createChip(screen, 8, 108, 34);
+  middleChip = createChip(screen, 47, 108, 34);
+  rightChip = createChip(screen, 86, 108, 34);
+
+  updateChip(leftChip, "BOOT", CHIP_TEXT, CHIPS_BG);
+  updateChip(middleChip, "WAIT", CHIP_TEXT, CHIPS_ALT);
+  updateChip(rightChip, "M5", CHIP_TEXT, CHIPS_SOFT);
+
+  uiReady = true;
+}
+
+void DisplayManager::updateLabel(lv_obj_t *label, const String &text) {
+  if (!label) {
+    return;
+  }
+  lv_label_set_text(label, labelText(text).c_str());
+}
+
+void DisplayManager::updateChip(ChipUi &chip, const String &text, uint16_t fg, uint16_t bg) {
+  if (!chip.container || !chip.label) {
+    return;
+  }
+  lv_obj_set_style_bg_color(chip.container, colorFrom565(bg), 0);
+  lv_label_set_text(chip.label, labelText(text).c_str());
+  lv_obj_set_style_text_color(chip.label, colorFrom565(fg), 0);
+}
+
 void DisplayManager::renderScreen(Mode mode, const String &title, const String &message, const String &detail,
-                                  const String &footer, const String &leftChip, const String &middleChip,
-                                  const String &rightChip, uint16_t accentColor) {
-  if (sameState(mode, title, message, detail, footer, leftChip, middleChip, rightChip, accentColor)) {
+                                  const String &footer, const String &leftText, const String &middleText,
+                                  const String &rightText, uint16_t accentColor) {
+  if (!uiReady) {
+    initUi();
+  }
+
+  if (sameState(mode, title, message, detail, footer, leftText, middleText, rightText, accentColor)) {
     return;
   }
 
@@ -102,50 +263,34 @@ void DisplayManager::renderScreen(Mode mode, const String &title, const String &
   currentMessage = message;
   currentDetail = detail;
   currentFooter = footer;
-  currentLeftChip = leftChip;
-  currentMiddleChip = middleChip;
-  currentRightChip = rightChip;
+  currentLeftChip = leftText;
+  currentMiddleChip = middleText;
+  currentRightChip = rightText;
   currentAccent = accentColor;
 
-  M5.Display.fillScreen(BG);
-  M5.Display.setTextDatum(top_left);
+  lv_obj_set_style_bg_color(screen, colorFrom565(BG), 0);
+  lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(accentStrip, colorFrom565(accentColor), 0);
 
-  M5.Display.fillRoundRect(8, 8, 112, 20, 10, CARD);
-  M5.Display.drawRoundRect(8, 8, 112, 20, 10, CARD_EDGE);
-  M5.Display.fillRoundRect(12, 12, 8, 8, 4, accentColor);
-  M5.Display.setTextColor(MUTED, CARD);
-  M5.Display.setTextSize(1);
-  M5.Display.setCursor(24, 14);
-  M5.Display.print(fitText(title, 88, &fonts::Font0));
+  updateLabel(stateLabel, message);
+  updateLabel(detailLabel, detail);
+  updateLabel(footerLabel, footer);
 
-  M5.Display.fillRoundRect(8, 36, 112, 54, 14, CARD);
-  M5.Display.drawRoundRect(8, 36, 112, 54, 14, CARD_EDGE);
-  M5.Display.fillRoundRect(12, 40, 104, 6, 3, accentColor);
-
-  M5.Display.setTextColor(WHITE_565, CARD);
-  M5.Display.setTextSize(1);
-  M5.Display.setFont(&fonts::Font2);
-  M5.Display.setCursor(14, 50);
-  M5.Display.print(fitText(message, 92, &fonts::Font2));
-
-  M5.Display.setTextColor(TEXT, CARD);
-  M5.Display.setFont(&fonts::Font0);
-  M5.Display.setCursor(14, 72);
-  M5.Display.print(fitText(detail, 96, &fonts::Font0));
-
-  M5.Display.setTextColor(MUTED, CARD);
-  M5.Display.setCursor(14, 84);
-  M5.Display.print(fitText(footer, 96, &fonts::Font0));
-
-  drawChip(10, 98, 34, leftChip, WHITE_565, CHIP_BG);
-  drawChip(47, 98, 36, middleChip, WHITE_565, CHIP_SOFT);
-  drawChip(87, 98, 31, rightChip, WHITE_565, accentColor);
-}
-
-void DisplayManager::drawChip(int16_t x, int16_t y, int16_t w, const String &text, uint16_t fg, uint16_t bg) {
-  M5.Display.fillRoundRect(x, y, w, 16, 8, bg);
-  M5.Display.setTextColor(fg, bg);
-  M5.Display.setTextSize(1);
-  M5.Display.setCursor(x + 5, y + 4);
-  M5.Display.print(fitText(text, w - 10, &fonts::Font0));
+  if (mode == Mode::Connected) {
+    updateChip(this->leftChip, leftText, CHIP_TEXT, CHIPS_BG);
+    updateChip(this->middleChip, middleText, CHIP_TEXT, CHIPS_ALT);
+    updateChip(this->rightChip, rightText, CHIP_TEXT, accentColor);
+  } else if (mode == Mode::Setup) {
+    updateChip(this->leftChip, leftText, CHIP_TEXT, CHIPS_BG);
+    updateChip(this->middleChip, middleText, CHIP_TEXT, accentColor);
+    updateChip(this->rightChip, rightText, CHIP_TEXT, CHIPS_ALT);
+  } else if (mode == Mode::Error) {
+    updateChip(this->leftChip, leftText, CHIP_TEXT, CHIPS_BG);
+    updateChip(this->middleChip, middleText, CHIP_TEXT, accentColor);
+    updateChip(this->rightChip, rightText, CHIP_TEXT, CHIPS_ALT);
+  } else {
+    updateChip(this->leftChip, leftText, CHIP_TEXT, CHIPS_BG);
+    updateChip(this->middleChip, middleText, CHIP_TEXT, CHIPS_ALT);
+    updateChip(this->rightChip, rightText, CHIP_TEXT, CHIPS_SOFT);
+  }
 }

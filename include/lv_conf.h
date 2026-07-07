@@ -1,0 +1,78 @@
+#ifndef LV_CONF_H
+#define LV_CONF_H
+
+#include <stdint.h>
+
+#define LV_COLOR_DEPTH 16
+#define LV_COLOR_16_SWAP 0
+
+#define LV_MEM_CUSTOM 0
+#define LV_MEM_SIZE (48U * 1024U)
+
+#define LV_TICK_CUSTOM 0
+
+#define LV_USE_LOG 0
+#define LV_USE_ASSERT_NULL 0
+#define LV_USE_ASSERT_MALLOC 0
+#define LV_USE_ASSERT_STYLE 0
+#define LV_USE_PERF_MONITOR 0
+#define LV_USE_MEM_MONITOR 0
+#define LV_USE_REFR_DEBUG 0
+
+#define LV_USE_DRAW_SW 1
+#define LV_USE_DRAW_PXP 0
+#define LV_USE_DRAW_VGLITE 0
+#define LV_USE_DRAW_DMA2D 0
+
+#define LV_USE_LABEL 1
+#define LV_USE_BTN 1
+#define LV_USE_ARC 1
+#define LV_USE_BAR 1
+#define LV_USE_IMG 1
+#define LV_USE_CANVAS 1
+#define LV_USE_SWITCH 0
+#define LV_USE_SLIDER 0
+#define LV_USE_TEXTAREA 0
+#define LV_USE_KEYBOARD 0
+#define LV_USE_TABLE 0
+#define LV_USE_CHART 0
+#define LV_USE_TILEVIEW 0
+#define LV_USE_WIN 0
+#define LV_USE_SPINBOX 0
+#define LV_USE_SPAN 0
+#define LV_USE_MSGBOX 0
+#define LV_USE_CALENDAR 0
+#define LV_USE_LED 0
+#define LV_USE_ANIMIMG 0
+#define LV_USE_GIF 0
+#define LV_USE_QRCODE 0
+#define LV_USE_FLEX 1
+
+#define LV_THEME_DEFAULT_GROW 1
+#define LV_THEME_DEFAULT_DARK 1
+
+#define LV_FONT_MONTSERRAT_12 1
+#define LV_FONT_MONTSERRAT_14 1
+#define LV_FONT_MONTSERRAT_18 1
+#define LV_FONT_MONTSERRAT_24 1
+#define LV_FONT_DEFAULT &lv_font_montserrat_14
+
+#define LV_USE_FONT_PLACEHOLDER 0
+
+#define LV_HOR_RES_MAX 128
+#define LV_VER_RES_MAX 128
+
+#define LV_USE_FS_STDIO 0
+#define LV_USE_FS_POSIX 0
+#define LV_USE_FS_WIN32 0
+#define LV_USE_FS_FATFS 0
+
+#define LV_USE_LINUX_FBDEV 0
+#define LV_USE_LINUX_DRM 0
+
+#define LV_USE_DEMO_WIDGETS 0
+#define LV_USE_DEMO_KEYPAD_AND_ENCODER 0
+#define LV_USE_DEMO_BENCHMARK 0
+#define LV_USE_DEMO_STRESS 0
+
+#endif
