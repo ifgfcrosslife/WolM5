@@ -44,10 +44,13 @@ class DisplayManager {
   bool dirty = true;
   bool uiReady = false;
   bool screenOn = true;
+  bool dimmed = false;
   bool forceRedraw = false;
   uint32_t lastTickMs = 0;
   uint32_t sleepAtMs = 0;
-  uint32_t screenTimeoutMs = 60000;
+  uint32_t screenTimeoutMs = 5000;
+  uint8_t fullBrightness = 190;
+  uint8_t dimBrightness = 40;
 
   lv_obj_t *screen = nullptr;
   lv_obj_t *titlePill = nullptr;

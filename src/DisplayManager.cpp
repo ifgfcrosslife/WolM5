@@ -89,7 +89,7 @@ void DisplayManager::begin() {
   cfg.output_power = true;
   M5.begin(cfg);
   M5.Display.setRotation(0);
-  M5.Display.setBrightness(190);
+  M5.Display.setBrightness(fullBrightness);
   M5.Display.fillScreen(BG);
 
   if (!lvglReady) {
@@ -108,6 +108,7 @@ void DisplayManager::begin() {
   dirty = true;
   lastTickMs = millis();
   screenOn = true;
+  dimmed = false;
   sleepAtMs = lastTickMs + screenTimeoutMs;
   forceRedraw = true;
 }
@@ -148,6 +149,7 @@ void DisplayManager::sleep() {
     return;
   }
   screenOn = false;
+  dimmed = false;
   M5.Display.setBrightness(0);
   M5.Display.sleep();
 }
@@ -160,8 +162,9 @@ void DisplayManager::wake() {
 
   screenOn = true;
   M5.Display.wakeup();
-  M5.Display.setBrightness(190);
+  M5.Display.setBrightness(fullBrightness);
   M5.Display.fillScreen(BG);
+  dimmed = false;
   forceRedraw = true;
   dirty = true;
   sleepAtMs = millis() + screenTimeoutMs;
@@ -172,7 +175,7 @@ void DisplayManager::handleInput() {
 
   const bool togglePressed = M5.BtnA.wasClicked();
   if (togglePressed) {
-    if (screenOn) {
+    if (screenOn && !dimmed) {
       sleep();
       return;
     }
@@ -180,8 +183,9 @@ void DisplayManager::handleInput() {
     return;
   }
 
-  if (screenOn && sleepAtMs != 0 && millis() >= sleepAtMs) {
-    sleep();
+  if (screenOn && !dimmed && sleepAtMs != 0 && millis() >= sleepAtMs) {
+    dimmed = true;
+    M5.Display.setBrightness(dimBrightness);
   }
 }
 
