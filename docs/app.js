@@ -146,25 +146,22 @@ function renderOverview() {
   if (!box) return;
   const bridge = state.bridges.find((item) => item.id === state.settings.bridgeId);
   const deviceCount = state.devices.length;
-  const commandCount = state.commands.length;
   const onlineCount = state.statuses.filter((item) => item.online).length;
 
   const deviceCountEl = $("device-count");
-  const commandCountEl = $("command-count");
   if (deviceCountEl) deviceCountEl.textContent = String(deviceCount);
-  if (commandCountEl) commandCountEl.textContent = String(commandCount);
 
   box.innerHTML = `
     <div class="stack">
       <div class="chip">Bridge ID: ${escapeHtml(state.settings.bridgeId || "-")}</div>
       <div class="notice">
-        <strong>${escapeHtml(bridge ? bridge.name || bridge.id : "Bridge belum terdaftar")}</strong><br>
-        <span class="muted-text">${escapeHtml(bridge ? `Last seen ${bridge.last_seen_at || "-"}` : "Klik Register / Update Bridge untuk membuat row bridge.")}</span>
+        <strong>${escapeHtml(bridge ? bridge.name || bridge.id : "Bridge belum terhubung")}</strong><br>
+        <span class="muted-text">${escapeHtml(bridge ? `Last seen ${bridge.last_seen_at || "-"}` : "M5 bridge akan muncul di sini setelah tersambung ke Supabase.")}</span>
       </div>
       <div class="status-strip" style="grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 0;">
         <div class="status-card"><span class="label">Devices</span><strong>${deviceCount}</strong></div>
-        <div class="status-card"><span class="label">Commands</span><strong>${commandCount}</strong></div>
         <div class="status-card"><span class="label">Online</span><strong>${onlineCount}</strong></div>
+        <div class="status-card"><span class="label">Bridge</span><strong>${bridge ? "Ready" : "Missing"}</strong></div>
       </div>
     </div>
   `;
@@ -191,81 +188,66 @@ function renderTable(containerId, rows, columns, emptyText = "Belum ada data.") 
   box.innerHTML = `<table class="data-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
-function renderBridges() {
-  renderTable("bridges-table", state.bridges, [
-    { label: "ID", key: "id" },
-    { label: "Name", key: "name" },
-    { label: "Local IP", key: "local_ip" },
-    { label: "AP IP", key: "ap_ip" },
-    { label: "WiFi", render: (row) => row.wifi_connected ? `<span class="chip">connected</span>` : `<span class="muted-text">setup</span>` },
-    { label: "Updated", key: "updated_at" }
-  ], "Belum ada bridge di Supabase.");
-}
-
-function renderDevices() {
+function renderDeviceTable(containerId, mode = "manage") {
   const statusMap = new Map();
   state.statuses.forEach((item) => {
     if (!statusMap.has(item.device_id)) statusMap.set(item.device_id, item);
   });
 
-  renderTable("devices-table", state.devices, [
-    { label: "Name", key: "name" },
-    { label: "MAC", key: "mac_address" },
-    { label: "IP", key: "ip_address" },
-    { label: "Broadcast", key: "broadcast_ip" },
-    { label: "Port", key: "port" },
-    {
-      label: "Status",
-      render: (row) => {
-        const status = statusMap.get(row.id);
-        if (!status) return `<span class="muted-text">-</span>`;
-        return status.online
-          ? `<span class="chip">online ${escapeHtml(status.latency_ms ?? "")}ms</span>`
-          : `<span class="muted-text">offline</span>`;
-      }
-    },
-    {
-      label: "Actions",
-      render: (row) => `
-        <div class="row-actions">
-          <button class="ghost-btn" data-edit-device="${escapeHtml(row.id)}" type="button">Edit</button>
-          <button class="secondary-btn" data-send-wol="${escapeHtml(row.id)}" type="button">WOL</button>
-          <button class="ghost-btn" data-disable-device="${escapeHtml(row.id)}" type="button">${row.enabled ? "Disable" : "Enable"}</button>
-        </div>
-      `
-    }
-  ], "Belum ada device.");
+  const columns = mode === "dashboard"
+    ? [
+        { label: "Name", key: "name" },
+        { label: "MAC", key: "mac_address" },
+        { label: "IP", key: "ip_address" },
+        {
+          label: "Status",
+          render: (row) => {
+            const status = statusMap.get(row.id);
+            if (!status) return `<span class="muted-text">-</span>`;
+            return status.online
+              ? `<span class="chip">online ${escapeHtml(status.latency_ms ?? "")}ms</span>`
+              : `<span class="muted-text">offline</span>`;
+          }
+        },
+        {
+          label: "Action",
+          render: (row) => `<button class="secondary-btn" data-send-wol="${escapeHtml(row.id)}" type="button">Send WOL</button>`
+        }
+      ]
+    : [
+        { label: "Name", key: "name" },
+        { label: "MAC", key: "mac_address" },
+        { label: "IP", key: "ip_address" },
+        { label: "Broadcast", key: "broadcast_ip" },
+        { label: "Port", key: "port" },
+        {
+          label: "Status",
+          render: (row) => {
+            const status = statusMap.get(row.id);
+            if (!status) return `<span class="muted-text">-</span>`;
+            return status.online
+              ? `<span class="chip">online ${escapeHtml(status.latency_ms ?? "")}ms</span>`
+              : `<span class="muted-text">offline</span>`;
+          }
+        },
+        {
+          label: "Actions",
+          render: (row) => `
+            <div class="row-actions">
+              <button class="ghost-btn" data-edit-device="${escapeHtml(row.id)}" type="button">Edit</button>
+              <button class="secondary-btn" data-send-wol="${escapeHtml(row.id)}" type="button">WOL</button>
+              <button class="ghost-btn" data-disable-device="${escapeHtml(row.id)}" type="button">${row.enabled ? "Disable" : "Enable"}</button>
+            </div>
+          `
+        }
+      ];
+
+  renderTable(containerId, state.devices, columns, "Belum ada device.");
 }
 
-function renderCommands() {
-  renderTable("commands-table", state.commands, [
-    { label: "Created", key: "created_at" },
-    { label: "Status", render: (row) => `<span class="chip">${escapeHtml(row.status || "-")}</span>` },
-    { label: "MAC", key: "mac_address" },
-    { label: "Port", key: "port" },
-    { label: "Message", key: "message" }
-  ], "Belum ada command.");
-}
-
-function renderWakeDevices() {
-  const select = $("wake-device");
-  if (!select) return;
-  select.innerHTML = state.devices
-    .filter((item) => item.enabled !== false)
-    .map((row) => `<option value="${escapeHtml(row.id)}">${escapeHtml(row.name || row.mac_address || row.id)}</option>`)
-    .join("");
-
-  updateWakeFields();
-}
-
-function updateWakeFields() {
-  const select = $("wake-device");
-  const id = select ? select.value : "";
-  const row = state.devices.find((item) => item.id === id);
-  if (!row) return;
-  $("wake-mac").value = row.mac_address || "";
-  $("wake-broadcast").value = row.broadcast_ip || state.settings.defaultBroadcast || "";
-  $("wake-port").value = row.port || state.settings.defaultPort || 9;
+function renderDevices() {
+  renderDeviceTable("dashboard-devices-table", "dashboard");
+  renderDeviceTable("devices-table", "manage");
 }
 
 function fillDeviceForm(row) {
@@ -438,22 +420,16 @@ async function refreshAll() {
     if (project) project.textContent = "Missing settings";
     if (bridge) bridge.textContent = state.settings.bridgeId || "-";
     renderOverview();
-    renderBridges();
     renderDevices();
-    renderCommands();
-    renderWakeDevices();
     return;
   }
 
   try {
-    await Promise.all([fetchBridges(), fetchDevices(), fetchCommands(), fetchStatuses()]);
+    await Promise.all([fetchBridges(), fetchDevices(), fetchStatuses()]);
     if (project) project.textContent = "Connected";
     if (bridge) bridge.textContent = bridgeStatusText();
     renderOverview();
-    renderBridges();
     renderDevices();
-    renderCommands();
-    renderWakeDevices();
   } catch (error) {
     if (project) project.textContent = "Error";
     if (bridge) bridge.textContent = state.settings.bridgeId || "-";
@@ -476,12 +452,12 @@ function setupTabs() {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.addEventListener("click", () => setTab(btn.dataset.tab));
   });
-  setTab(localStorage.getItem("wolm5-active-tab") || "dashboard");
+  const savedTab = localStorage.getItem("wolm5-active-tab") || "dashboard";
+  setTab(["dashboard", "devices", "settings"].includes(savedTab) ? savedTab : "dashboard");
 }
 
 function setupEvents() {
   $("settings-form").addEventListener("submit", saveSettings);
-  $("save-settings-btn").addEventListener("click", saveSettings);
   $("forget-settings-btn").addEventListener("click", () => {
     localStorage.removeItem(storageKey);
     state.settings = {
@@ -499,16 +475,8 @@ function setupEvents() {
   });
   $("refresh-btn").addEventListener("click", refreshAll);
   $("test-conn-btn").addEventListener("click", testConnection);
-  $("register-bridge-btn").addEventListener("click", registerBridge);
   $("device-form").addEventListener("submit", saveDevice);
   $("device-clear-btn").addEventListener("click", clearDeviceForm);
-  $("wake-device").addEventListener("change", updateWakeFields);
-  $("wake-form").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const deviceId = $("wake-device").value;
-    if (!deviceId) return;
-    await sendWake(deviceId);
-  });
 
   document.addEventListener("click", async (event) => {
     const editId = event.target.closest("[data-edit-device]")?.dataset.editDevice;
@@ -521,7 +489,6 @@ function setupEvents() {
     }
     if (sendId) {
       await sendWake(sendId);
-      setTab("commands");
     }
     if (toggleId) {
       await disableDevice(toggleId);
@@ -535,10 +502,7 @@ async function bootstrap() {
   setupTabs();
   setupEvents();
   renderOverview();
-  renderBridges();
   renderDevices();
-  renderCommands();
-  renderWakeDevices();
   await refreshAll();
   setInterval(refreshAll, 30000);
 }

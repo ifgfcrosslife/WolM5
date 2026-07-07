@@ -12,13 +12,12 @@
       <div>
         <p class="eyebrow">Wake-on-LAN Portal</p>
         <h1>WOL Control Center</h1>
-        <p class="subtitle">Portal GitHub Pages untuk mengelola bridge, PC, dan command dari Supabase.</p>
+        <p class="subtitle">Portal GitHub Pages untuk melihat daftar PC dan mengirim Wake-on-LAN dengan cepat.</p>
       </div>
       <div class="top-actions">
         <button class="icon-btn" id="refresh-btn" type="button" title="Refresh all">
           <span aria-hidden="true">&#8635;</span>
         </button>
-        <button class="primary-btn" id="save-settings-btn" type="button">Save Settings</button>
       </div>
     </header>
 
@@ -35,17 +34,11 @@
         <span class="label">Devices</span>
         <strong id="device-count">0</strong>
       </div>
-      <div class="status-card">
-        <span class="label">Commands</span>
-        <strong id="command-count">0</strong>
-      </div>
     </section>
 
     <nav class="tabs" id="tabs">
       <button class="tab-btn active" data-tab="dashboard" type="button">Dashboard</button>
-      <button class="tab-btn" data-tab="bridges" type="button">Bridges</button>
       <button class="tab-btn" data-tab="devices" type="button">Devices</button>
-      <button class="tab-btn" data-tab="commands" type="button">Commands</button>
       <button class="tab-btn" data-tab="settings" type="button">Settings</button>
     </nav>
 
@@ -54,38 +47,24 @@
         <div class="grid">
           <article class="card">
             <header class="card-head">
-              <h2>Overview</h2>
-              <p>Ringkasan cepat bridge yang aktif dan data dari Supabase.</p>
+              <h2>PC List</h2>
+              <p>Daftar PC yang sudah terdaftar. Tekan tombol WOL di baris yang ingin dinyalakan.</p>
             </header>
-            <div class="card-body" id="overview-box">
-              <div class="empty">Masukkan Supabase URL, anon key, dan Bridge ID di tab Settings.</div>
+            <div class="card-body">
+              <div id="dashboard-devices-table" class="data-block"></div>
             </div>
           </article>
 
           <article class="card">
             <header class="card-head">
-              <h2>Bridge Actions</h2>
-              <p>Sinkronisasi bridge dan status langsung dari portal.</p>
+              <h2>Bridge Status</h2>
+              <p>Ringkasan singkat bridge yang terhubung ke Supabase.</p>
             </header>
-            <div class="card-body stack">
-              <button class="secondary-btn" id="test-conn-btn" type="button">Test Connection</button>
-              <button class="secondary-btn" id="register-bridge-btn" type="button">Register / Update Bridge</button>
-              <div class="notice" id="action-result">Siapkan setting dulu, lalu lakukan test koneksi.</div>
+            <div class="card-body stack" id="overview-box">
+              <div class="empty">Isi setting Supabase dulu, lalu refresh halaman.</div>
             </div>
           </article>
         </div>
-      </section>
-
-      <section class="panel" data-panel="bridges">
-        <article class="card">
-          <header class="card-head">
-            <h2>Bridge Registry</h2>
-            <p>Daftar bridge yang tersimpan di Supabase.</p>
-          </header>
-          <div class="card-body">
-            <div id="bridges-table" class="data-block"></div>
-          </div>
-        </article>
       </section>
 
       <section class="panel" data-panel="devices">
@@ -142,54 +121,12 @@
         </div>
       </section>
 
-      <section class="panel" data-panel="commands">
-        <div class="grid">
-          <article class="card">
-            <header class="card-head">
-              <h2>Commands</h2>
-              <p>Command yang masuk ke bridge akan muncul di sini.</p>
-            </header>
-            <div class="card-body">
-              <div id="commands-table" class="data-block"></div>
-            </div>
-          </article>
-
-          <article class="card">
-            <header class="card-head">
-              <h2>Send Wake</h2>
-              <p>Kirim command manual ke device yang dipilih.</p>
-            </header>
-            <div class="card-body">
-              <form id="wake-form" class="stack">
-                <label class="field">
-                  <span>Device</span>
-                  <select id="wake-device"></select>
-                </label>
-                <label class="field">
-                  <span>MAC</span>
-                  <input id="wake-mac" type="text" readonly>
-                </label>
-                <label class="field">
-                  <span>Broadcast</span>
-                  <input id="wake-broadcast" type="text" readonly>
-                </label>
-                <label class="field">
-                  <span>Port</span>
-                  <input id="wake-port" type="number" readonly>
-                </label>
-                <button class="primary-btn" type="submit">Queue WOL</button>
-              </form>
-            </div>
-          </article>
-        </div>
-      </section>
-
       <section class="panel" data-panel="settings">
         <div class="grid">
           <article class="card">
             <header class="card-head">
               <h2>Supabase Settings</h2>
-              <p>Semua credential disimpan lokal di browser kamu.</p>
+              <p>Semua credential disimpan lokal di browser kamu. Tombol Save Settings hanya menyimpan isi form ini di browser ini saja.</p>
             </header>
             <div class="card-body">
               <form id="settings-form" class="form-grid">
@@ -201,13 +138,13 @@
                   <span>Anon Key</span>
                   <input id="supabase-key" type="password" placeholder="eyJhbGciOi...">
                 </label>
+                <label class="field field-wide">
+                  <span>Bridge Secret</span>
+                  <input id="bridge-secret" type="text" placeholder="shared-secret">
+                </label>
                 <label class="field">
                   <span>Bridge ID</span>
                   <input id="bridge-id" type="text" placeholder="m5-atom-s3">
-                </label>
-                <label class="field">
-                  <span>Bridge Secret</span>
-                  <input id="bridge-secret" type="text" placeholder="shared-secret">
                 </label>
                 <label class="field">
                   <span>Bridge Name</span>
@@ -222,9 +159,11 @@
                   <input id="default-port" type="number" min="1" value="9">
                 </label>
                 <div class="form-actions">
+                  <button class="secondary-btn" id="test-conn-btn" type="button">Test Connection</button>
                   <button class="primary-btn" type="submit">Save Settings</button>
                   <button class="ghost-btn" id="forget-settings-btn" type="button">Forget</button>
                 </div>
+                <div class="notice" id="action-result">Save Settings menyimpan URL, anon key, Bridge ID, Bridge Secret, dan default device lokal di browser ini.</div>
               </form>
             </div>
           </article>
@@ -237,10 +176,10 @@
             <div class="card-body prose">
               <ol>
                 <li>Isi Supabase URL, anon key, Bridge ID, dan Bridge Secret.</li>
-                <li>Register bridge supaya row <code>wol_bridges</code> ada.</li>
-                <li>Tambah PC ke <code>wol_devices</code> manual atau nanti dari M5.</li>
-                <li>Queue WOL untuk membuat row di <code>wol_commands</code>.</li>
-                <li>M5 bridge yang akan mengeksekusi command itu di LAN.</li>
+                <li>Simpan setting lokal di browser supaya tidak perlu isi ulang.</li>
+                <li>Daftarkan PC dari tab Devices.</li>
+                <li>Tekan WOL pada PC yang ingin dinyalakan.</li>
+                <li>M5 bridge yang akan mengirim magic packet ke LAN.</li>
               </ol>
             </div>
           </article>
