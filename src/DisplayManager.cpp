@@ -109,7 +109,8 @@ void DisplayManager::begin() {
   lastTickMs = millis();
   screenOn = true;
   dimmed = false;
-  sleepAtMs = lastTickMs + screenTimeoutMs;
+  dimAtMs = lastTickMs + dimTimeoutMs;
+  sleepAtMs = lastTickMs + sleepTimeoutMs;
   forceRedraw = true;
 }
 
@@ -156,7 +157,9 @@ void DisplayManager::sleep() {
 
 void DisplayManager::wake() {
   if (screenOn) {
-    sleepAtMs = millis() + screenTimeoutMs;
+    const uint32_t now = millis();
+    dimAtMs = now + dimTimeoutMs;
+    sleepAtMs = now + sleepTimeoutMs;
     return;
   }
 
@@ -167,7 +170,9 @@ void DisplayManager::wake() {
   dimmed = false;
   forceRedraw = true;
   dirty = true;
-  sleepAtMs = millis() + screenTimeoutMs;
+  const uint32_t now = millis();
+  dimAtMs = now + dimTimeoutMs;
+  sleepAtMs = now + sleepTimeoutMs;
 }
 
 void DisplayManager::handleInput() {
@@ -183,9 +188,14 @@ void DisplayManager::handleInput() {
     return;
   }
 
-  if (screenOn && !dimmed && sleepAtMs != 0 && millis() >= sleepAtMs) {
+  const uint32_t now = millis();
+  if (screenOn && !dimmed && dimAtMs != 0 && now >= dimAtMs) {
     dimmed = true;
     M5.Display.setBrightness(dimBrightness);
+  }
+
+  if (screenOn && sleepAtMs != 0 && now >= sleepAtMs) {
+    sleep();
   }
 }
 

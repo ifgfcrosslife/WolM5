@@ -47,8 +47,10 @@ class DisplayManager {
   bool dimmed = false;
   bool forceRedraw = false;
   uint32_t lastTickMs = 0;
+  uint32_t dimAtMs = 0;
   uint32_t sleepAtMs = 0;
-  uint32_t screenTimeoutMs = 5000;
+  uint32_t dimTimeoutMs = 5000;
+  uint32_t sleepTimeoutMs = 20000;
   uint8_t fullBrightness = 190;
   uint8_t dimBrightness = 40;
 
