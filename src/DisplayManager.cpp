@@ -170,7 +170,7 @@ void DisplayManager::wake() {
 void DisplayManager::handleInput() {
   M5.update();
 
-  const bool togglePressed = M5.BtnB.wasClicked();
+  const bool togglePressed = M5.BtnA.wasClicked();
   if (togglePressed) {
     if (screenOn) {
       sleep();
